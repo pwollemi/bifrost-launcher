@@ -1,3 +1,7 @@
+/**
+ *Submitted for verification at BscScan.com on 2021-08-15
+*/
+
 // SPDX-License-Identifier: MIT
 //
 // Copyright of The $RAINBOW Team
