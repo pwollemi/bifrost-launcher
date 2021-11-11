@@ -79,6 +79,8 @@ async function main() {
     // TODO: Test sale state
 
     // TODO: Test sale launching successfully
+
+    // TODO: Test taxing via Router
 }
 
 // We recommend this pattern to be able to use async/await everywhere
