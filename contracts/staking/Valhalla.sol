@@ -11,11 +11,11 @@
                                                                                  
 pragma solidity ^0.8.4;
 
-import 'contracts/openzeppelin-contracts/Address.sol';
-import 'contracts/openzeppelin-contracts/Context.sol';
-import 'contracts/openzeppelin-contracts/Ownable.sol';
-import 'contracts/openzeppelin-contracts/SafeMath.sol';
-import 'contracts/openzeppelin-contracts/IERC20.sol';
+import 'contracts/openzeppelin/Address.sol';
+import 'contracts/openzeppelin/Context.sol';
+import 'contracts/openzeppelin/Ownable.sol';
+import 'contracts/openzeppelin/SafeMath.sol';
+import 'contracts/openzeppelin/IERC20.sol';
 
 /**
  * @notice The official Valhalla staking/farming smart contract

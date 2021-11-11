@@ -13,12 +13,14 @@ async function main() {
     // If this script is run directly using `node` you may want to call compile
     // manually to make sure everything is compiled
     await hre.run('compile');
-    const [owner, addr1, addr2] = await ethers.getSigners();
+    const [owner, addr1, addr2, addr3] = await ethers.getSigners();
+    const RainbowContract = await ethers.getContractFactory("RainbowToken");
+    const RouterContract = await ethers.getContractFactory("BifrostRouter01");
+    let RAINBOW = await RainbowContract.deploy();
+    let router = await RouterContract.deploy();
     console.log("Owner: " + owner.address);
 
     // Deploy RAINBOW
-    const RAINBOW = await ethers.getContractFactory("RainbowToken");
-    const rainbow = await RAINBOW.deploy();
     rainbow.connect(owner).transfer(addr1.address, 1e13);
     console.log(owner.address + " RAINBOW balance: " + await rainbow.balanceOf(owner.address));
     console.log(addr1.address + " RAINBOW balance: " + await rainbow.balanceOf(addr1.address));

@@ -11,12 +11,12 @@
 
 pragma solidity ^0.8.4;
 
-import 'contracts/openzeppelin-contracts/Address.sol';
-import 'contracts/openzeppelin-contracts/Context.sol';
-import 'contracts/openzeppelin-contracts/Ownable.sol';
-import 'contracts/openzeppelin-contracts/SafeMath.sol';
-import 'contracts/openzeppelin-contracts/IERC20.sol';
-
-contract BifrostHolder is Context, Ownable {
-    
+/**
+ * @notice Declares the functions that the Bifrost Launcher uses
+ */
+interface IBifrostLauncher {
+    function launch() external;
+    function launched() external view returns(bool);
+    function canWithdrawLiquidity() external view returns(bool);
+    function withdrawLiquidity() external;
 }

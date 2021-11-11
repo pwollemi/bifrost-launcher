@@ -19,35 +19,48 @@ async function main() {
     const router = await TestRouter.deploy();
 
     // Deploy Launcher
-    const TestSale = await ethers.getContractFactory("TestSale");
-    const sale = await TestSale.deploy(router.address);
+    // const TestSale = await ethers.getContractFactory("TestSale");
+    // const sale = await TestSale.deploy(router.address);
 
     console.log("Owner Balance: " + await ethers.provider.getBalance(owner.address));
     console.log("Addr1 Balance: " + await ethers.provider.getBalance(addr1.address));
-    console.log("Sale: " + await ethers.provider.getBalance(sale.address));
+    //console.log("Sale: " + await ethers.provider.getBalance(sale.address));
     console.log("Router: " + await ethers.provider.getBalance(router.address));
 
-    let tx = await addr1.sendTransaction({
-        to: sale.address,
-        value: 1e12
+    let ABI = ["function createSale()"];
+    let iface = new ethers.utils.Interface(ABI);
+    let tx = await owner.sendTransaction({
+        to: router.address,
+        value: ethers.utils.parseEther("0.9"),
+        data: iface.encodeFunctionData("createSale")
     });
 
     console.log("Owner Balance: " + await ethers.provider.getBalance(owner.address));
     console.log("Addr1 Balance: " + await ethers.provider.getBalance(addr1.address));
-    console.log("Sale: " + await ethers.provider.getBalance(sale.address));
+    //console.log("Sale: " + await ethers.provider.getBalance(sale.address));
     console.log("Router: " + await ethers.provider.getBalance(router.address));
 
-    await sale.setRunning(false);
+    // let tx = await addr1.sendTransaction({
+    //     to: sale.address,
+    //     value: 1e12
+    // });
 
-    tx = await addr1.sendTransaction({
-        to: sale.address,
-        value: 1e12
-    });
+    // console.log("Owner Balance: " + await ethers.provider.getBalance(owner.address));
+    // console.log("Addr1 Balance: " + await ethers.provider.getBalance(addr1.address));
+    // console.log("Sale: " + await ethers.provider.getBalance(sale.address));
+    // console.log("Router: " + await ethers.provider.getBalance(router.address));
 
-    console.log("Owner Balance: " + await ethers.provider.getBalance(owner.address));
-    console.log("Addr1 Balance: " + await ethers.provider.getBalance(addr1.address));
-    console.log("Sale: " + await ethers.provider.getBalance(sale.address));
-    console.log("Router: " + await ethers.provider.getBalance(router.address));
+    // await sale.setRunning(false);
+
+    // tx = await addr1.sendTransaction({
+    //     to: sale.address,
+    //     value: 1e18
+    // });
+
+    // console.log("Owner Balance: " + await ethers.provider.getBalance(owner.address));
+    // console.log("Addr1 Balance: " + await ethers.provider.getBalance(addr1.address));
+    // console.log("Sale: " + await ethers.provider.getBalance(sale.address));
+    // console.log("Router: " + await ethers.provider.getBalance(router.address));
 }
 
 // We recommend this pattern to be able to use async/await everywhere
