@@ -6,6 +6,7 @@
 const hre = require("hardhat");
 const ethers = hre.ethers;
 const fs = require('fs');
+const { setNextBlockTimestamp, latest } = require("./utils");
 
 async function main() {
     // Hardhat always runs the compile task when running scripts with its command
@@ -40,6 +41,9 @@ async function main() {
     console.log("\n\nTesting Sale Creation");
     console.log("Addr1 Rainbow: " + await RAINBOW.balanceOf(addr1.address));
     await RAINBOW.connect(addr1).approve(router.address, 100000000000);
+
+    const startTime = (await latest()).toNumber();
+    const endTime = startTime + (await router.minimumSaleTime()).toNumber();
     await addr1.sendTransaction({
         to: router.address,
         value: ethers.utils.parseEther("0.1"),
@@ -52,8 +56,8 @@ async function main() {
                 100000, 
                 150000,
                 9000,
-                Date.now(),
-                Date.now() + await router.minimumSaleTime(),
+                startTime,
+                endTime,
                 60*60*24*30
             ])
     });
@@ -70,15 +74,33 @@ async function main() {
     console.log(result);
     console.log("Sale Contract Rainbow: " + await RAINBOW.balanceOf(result[3]));
     
-    let CurrentSale = await SaleContract.connect(result[3]);
+    let CurrentSale = await ethers.getContractAt("BifrostSale01", result[3]);
     
     // TODO: Test sale deposit
+    console.log("Is Sale Running: ", await CurrentSale.running());
+    await addr1.sendTransaction({
+      to: CurrentSale.address,
+      value: ethers.utils.parseEther("0.1")
+    });
+    await addr2.sendTransaction({
+      to: CurrentSale.address,
+      value: ethers.utils.parseEther("0.2")
+    });
 
     // TODO: Test sale duration
+    await setNextBlockTimestamp(endTime);
+    console.log("Is Sale Running: ", await CurrentSale.running());
+    await addr3.sendTransaction({
+      to: CurrentSale.address,
+      value: ethers.utils.parseEther("0.1")
+    });
 
     // TODO: Test sale state
+    console.log("Is Sale Ended: ", await CurrentSale.ended());
 
     // TODO: Test sale launching successfully
+    await CurrentSale.finalize();
+    console.log("Is Sale Ended: ", await CurrentSale.ended());
 
     // TODO: Test taxing via Router
 }
