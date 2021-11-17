@@ -21,7 +21,7 @@ interface IBifrostSale01 {
     function setRunner(address runner) external;
 
     function canStart() external view returns(bool);
-    function deposit(uint256 amount) external;
+    function deposit() external payable;
     function finalize() external;
     function withdraw() external;
     function reclaim() external view;

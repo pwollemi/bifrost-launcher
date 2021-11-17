@@ -20,6 +20,7 @@ import 'contracts/uniswap/TransferHelper.sol';
 
 import 'contracts/bifrost/IBifrostRouter01.sol';
 import 'contracts/bifrost/BifrostSale01.sol';
+import 'contracts/chainlink/AggregatorV3Interface.sol';
 import "hardhat/console.sol";
 
 /**
@@ -36,6 +37,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     Sale[] public                       _saleList; // A list of sales
 
     mapping (address => bool) public _partnerTokens; // A mapping of token contract addresses to a flag describing whether or not they can be used to pay a fee
+    mapping (address => address) public _aggregators;  // A mapping of token contract addresses to its price feed paired with BNB
     mapping (address => bool) public _feePaid;       // A mapping of wallet addresses to a flag for whether they paid the fee via a partner token or not
 
     /**
@@ -107,15 +109,37 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
      * @notice Sets a token as able to decide fees of Bifrost
      */
     function setPartnerToken(address token, bool b) override external onlyOwner {
+        require(_aggregators[token] != address(0), "Set price feed first");
         _partnerTokens[token] = b;
+    }
+
+    /**
+     * @notice Sets a token price feed
+     */
+    function setPriceFeed(address token, address feed) override external onlyOwner {
+        _aggregators[token] = feed;
+    }
+
+    /**
+     * @notice Sets a token price feed
+     */
+    function listingFeeInToken(address token) public view returns (uint256) {
+        AggregatorV3Interface aggregator = AggregatorV3Interface(_aggregators[token]);
+        (, int256 answer, , , ) = aggregator.latestRoundData();
+        require(answer > 0, "Invalid price feed");
+
+        uint256 decimals = aggregator.decimals();
+        return _listingFee * (10 ** decimals) / uint256(answer);
     }
 
     /**
      * @notice Marks the sender as 
      */
-    function payFee(address token, uint256 amount) override external {
+    function payFee(address token) override external {
         require(_partnerTokens[token], "Token not a partner token!");
-        TransferHelper.safeTransferFrom(token, msg.sender, owner(), amount);
+
+        uint256 feeInToken = listingFeeInToken(token);
+        TransferHelper.safeTransferFrom(token, msg.sender, owner(), feeInToken);
         _feePaid[msg.sender] = true;
     }
 

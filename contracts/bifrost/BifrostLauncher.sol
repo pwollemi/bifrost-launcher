@@ -62,23 +62,20 @@ contract BifrostLauncher is IBifrostLauncher, Context, Ownable {
 
     /**
      * @notice Launches to PancakeSwap V2
+     * @dev tokenAmount comes by param, bnb amount is paid to the function
      */
-    function launch() override external isAdmin {
-        console.log("Launching!");
-
-        uint256 bnbAmount = address(_saleAddress).balance;
-        uint256 tokenAmount = IERC20(_saleToken).balanceOf(_saleAddress);
+    function launch(uint256 tokenAmount) override external payable isAdmin {
 
         // Transfer the full balance of BNB from the sale to the launcher
-        TransferHelper.safeTransferETH(address(this), bnbAmount);
+        // TransferHelper.safeTransferETH(address(this), bnbAmount);
 
         // Transfer the full balance of tokens from the sale to the launcher
         TransferHelper.safeTransferFrom(_saleToken, _saleAddress, address(this), tokenAmount);
 
         // Approve PancakeSwap Router to spend our tokens
         TransferHelper.safeApprove(_saleToken, address(_pancakeswapV2Router), tokenAmount);
-        _pancakeswapV2LiquidityPair = IPancakeFactory(_pancakeswapV2Router.factory()).createPair(_saleToken, _pancakeswapV2Router.WETH());
-        _pancakeswapV2Router.addLiquidityETH{value: bnbAmount}(_saleToken, tokenAmount, 0, 0, address(this), block.timestamp.add(300));
+        _pancakeswapV2Router.addLiquidityETH{value: msg.value}(_saleToken, tokenAmount, 0, 0, address(this), block.timestamp.add(300));
+        _pancakeswapV2LiquidityPair = IPancakeFactory(_pancakeswapV2Router.factory()).getPair(_saleToken, _pancakeswapV2Router.WETH());
 
         _launched = true;
     }

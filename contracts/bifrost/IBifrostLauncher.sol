@@ -15,7 +15,7 @@ pragma solidity ^0.8.4;
  * @notice Declares the functions that the Bifrost Launcher uses
  */
 interface IBifrostLauncher {
-    function launch() external;
+    function launch(uint256) external payable;
     function launched() external view returns(bool);
     function canWithdrawLiquidity() external view returns(bool);
     function withdrawLiquidity() external;

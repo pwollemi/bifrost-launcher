@@ -37,11 +37,42 @@ async function advanceTimeAndBlock(time) {
   await mineBlock()
 }
 
+async function impersonateAccount(account) {
+  await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [account]}
+  );
+}
+
+async function stopImpersonatingAccount(account) {
+  await hre.network.provider.request({
+      method: "hardhat_stopImpersonatingAccount",
+      params: [account]}
+  );
+}
+
+async function impersonateForToken(tokenInfo, receiver, amount) {
+  const token = await ethers.getContractAt("contracts/openzeppelin/IERC20.sol:IERC20", tokenInfo.address);
+  console.log("Impersonating for " + await tokenInfo.symbol);
+  await receiver.sendTransaction({
+    to: tokenInfo.holder,
+    value: ethers.utils.parseEther("1.0")
+  });
+
+  await impersonateAccount(tokenInfo.holder);
+  const signedHolder = await ethers.provider.getSigner(tokenInfo.holder);
+  await token.connect(signedHolder).transfer(receiver.address, ethers.utils.parseUnits(amount, tokenInfo.decimals));
+  await stopImpersonatingAccount(tokenInfo.holder);
+}
+
 module.exports = {
   mineBlock,
   setNextBlockTimestamp,
   mineBlockTo,
   latest,
   advanceTime,
-  advanceTimeAndBlock
+  advanceTimeAndBlock,
+  impersonateAccount,
+  stopImpersonatingAccount,
+  impersonateForToken
 }

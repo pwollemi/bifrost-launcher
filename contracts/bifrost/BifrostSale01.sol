@@ -121,7 +121,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
     uint256 public _saleAmount;             // How many tokens are on sale
     uint256 public _liquidityAmount;        // How many tokens are allocated for liquidity
     uint256 public _raised;                 // How much BNB has been raised
-    mapping(address => uint256) _deposited; // A mapping of addresses to the amount of BNB they deposited
+    mapping(address => uint256) public _deposited; // A mapping of addresses to the amount of BNB they deposited
     
     /**
      * @notice Creates a bifrost sale
@@ -180,12 +180,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
      * @notice If the presale isn't running will direct any received payments straight to the router
      */
     receive() external payable {
-        if (running()) {
-            _deposited[msg.sender] = msg.value;
-            _raised = _raised.add(msg.value);
-        } else {
-            _routerAddress.transfer(msg.value);
-        }
+        _deposit(msg.sender, msg.value);
     }
 
     function totalTokens() override external view returns (uint256) {
@@ -219,8 +214,8 @@ contract BifrostSale01 is IBifrostSale01, Context {
      * @notice For users to deposit into the sale
      * @dev This entitles msg.sender to (amount * _presaleRate) after a successful sale
      */
-    function deposit(uint256 amount) override external isRunning {
-        payable(address(this)).transfer(amount);
+    function deposit() override external payable isRunning {
+        _deposit(msg.sender, msg.value);
     }
 
     /**
@@ -228,9 +223,12 @@ contract BifrostSale01 is IBifrostSale01, Context {
      */
     function finalize() override external isAdmin {
         require(successful() || block.timestamp > _end, "Cannot finalize sale yet!");
+
         uint256 liquidityTokens = _liquidityAmount.mul(_liquidity).div(1e4);
         uint256 liquidityBNB = _raised.mul(_liquidity).div(1e4);
-       // _launcher.launch();
+        TransferHelper.safeApprove(_token, address(_launcher), liquidityTokens);
+        _launcher.launch{value:liquidityBNB}(liquidityTokens);
+
         TransferHelper.safeTransferETH(msg.sender, _raised.sub(liquidityBNB));
         TransferHelper.safeTransfer(_token, msg.sender, _liquidityAmount.sub(liquidityTokens));
         _launched = true;
@@ -261,5 +259,17 @@ contract BifrostSale01 is IBifrostSale01, Context {
      */
     function reclaim() override external view {
         require(_routerAddress == msg.sender || _owner == msg.sender, "User not Bifrost");
+    }
+
+    /**
+     * @notice 
+     */
+    function _deposit(address user, uint256 amount) internal {
+        if (running()) {
+            _deposited[user] = amount;
+            _raised = _raised.add(amount);
+        } else {
+            _routerAddress.transfer(amount);
+        }
     }
 }
