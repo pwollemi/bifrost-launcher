@@ -30,6 +30,8 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
+    address public constant RAINBOW = 0x673da443da2f6ae7c5c660a9f0d3dd24d1643d36;
+
     uint256 private _id;                           // Increments for each sale that launches
     
     mapping (uint256 => address) public _ids;      // A mapping of sale IDs to owner addresses for O(1) retrieval
@@ -39,6 +41,10 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     mapping (address => bool) public _partnerTokens; // A mapping of token contract addresses to a flag describing whether or not they can be used to pay a fee
     mapping (address => address) public _aggregators;  // A mapping of token contract addresses to its price feed paired with BNB
     mapping (address => bool) public _feePaid;       // A mapping of wallet addresses to a flag for whether they paid the fee via a partner token or not
+
+    uint256 public constant _totalPercentage = 10000; 
+    uint256 public _partnerDiscount = 2000;  // Discount given for partner tokens 20%
+    uint256 public _rainbowDiscount = 2500;  // Discount given for RAINBOW 25% 
 
     /**
      * @notice Stats
@@ -137,8 +143,14 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
      */
     function payFee(address token) override external {
         require(_partnerTokens[token], "Token not a partner token!");
+        uint256 discount = _partnerDiscount;
+        if (token == RAINBOW) {
+            discount = _rainbowDiscount;
+        }
 
-        uint256 feeInToken = listingFeeInToken(token);
+        // Gets the fee in tokens, then takes a percentage discount to incentivize people paying in
+        // tokens.
+        uint256 feeInToken = listingFeeInToken(token).mul(totalPercentage.sub(discount)).div(1e4);
         TransferHelper.safeTransferFrom(token, msg.sender, owner(), feeInToken);
         _feePaid[msg.sender] = true;
     }
@@ -281,6 +293,14 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     /**
      * @notice GETTERS AND SETTERS
      */
+    function setPartnerDiscount(uint256 partnerDiscount) external onlyOwner {
+        _partnerDiscount = partnerDiscount;
+    }
+    function partnerDiscount() public view returns (uint256) { return _partnerDiscount; }
+    function setRainbowDiscount(uint256 rainbowDiscount) external onlyOwnwer {
+        _rainbowDiscount = rainbowDiscount;
+    }
+    function rainbowDiscount() public view returns (uint256) { return _rainbowDiscount; }
     function setListingFee(uint256 listingFee) external onlyOwner {
         _listingFee = listingFee;
     }
