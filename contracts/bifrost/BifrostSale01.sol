@@ -16,11 +16,12 @@ import 'contracts/openzeppelin/Context.sol';
 import 'contracts/openzeppelin/Ownable.sol';
 import 'contracts/openzeppelin/SafeMath.sol';
 import 'contracts/openzeppelin/IERC20.sol';
+import 'contracts/pancakeswap/IPancakeRouter02.sol';
+import 'contracts/pancakeswap/IPancakeFactory.sol';
 import 'contracts/uniswap/TransferHelper.sol';
 
 import 'contracts/bifrost/IBifrostRouter01.sol';
 import 'contracts/bifrost/IBifrostSale01.sol';
-import 'contracts/bifrost/BifrostLauncher.sol';
 
 /**
  * @notice A Bifrost Sale
@@ -33,13 +34,18 @@ contract BifrostSale01 is IBifrostSale01, Context {
     address payable public  _routerAddress; // The BifrostRouter address
     address public          _owner;         // The BifrostRouter owner
     address public          _runner;        // The person running the sale
-    BifrostLauncher public  _launcher;      // The launching contract
 
     /**
      * @notice State Settings
      */
     bool public _prepared;   // True when the sale has been prepared to start by the owner
     bool public _launched;   // Whether the sale has been finalized and launched
+
+    /**
+     * @notice Launch Settings
+     */
+    IPancakeRouter02 public _pancakeswapV2Router;   // The address of the router
+    address public _pancakeswapV2LiquidityPair;     // The address of the LP token
 
     /**
      * @notice Checks if the caller is the Bifrost owner, Sale owner or the router itself
@@ -144,8 +150,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
         // Let the router control payments!
         IERC20(token).approve(router, type(uint256).max);
 
-        // Creates a launcher
-        _launcher = new BifrostLauncher(address(this), runner, token, unlockTime);
+        _pancakeswapV2Router = IPancakeRouter02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
         _launched = false;
         _unlockTime = unlockTime;
     }
@@ -226,8 +231,11 @@ contract BifrostSale01 is IBifrostSale01, Context {
 
         uint256 liquidityTokens = _liquidityAmount.mul(_liquidity).div(1e4);
         uint256 liquidityBNB = _raised.mul(_liquidity).div(1e4);
-        TransferHelper.safeApprove(_token, address(_launcher), liquidityTokens);
-        _launcher.launch{value:liquidityBNB}(liquidityTokens);
+
+        // add liquidity
+        TransferHelper.safeApprove(_token, address(_pancakeswapV2Router), liquidityTokens);
+        _pancakeswapV2Router.addLiquidityETH{value: liquidityBNB}(_token, liquidityTokens, 0, 0, address(this), block.timestamp.add(300));
+        _pancakeswapV2LiquidityPair = IPancakeFactory(_pancakeswapV2Router.factory()).getPair(_token, _pancakeswapV2Router.WETH());
 
         TransferHelper.safeTransferETH(msg.sender, _raised.sub(liquidityBNB));
         TransferHelper.safeTransfer(_token, msg.sender, _liquidityAmount.sub(liquidityTokens));
@@ -271,5 +279,20 @@ contract BifrostSale01 is IBifrostSale01, Context {
         } else {
             _routerAddress.transfer(amount);
         }
+    }
+
+    /**
+     * @notice Returns true if the admin is able to withdraw the LP tokens
+     */
+    function canWithdrawLiquidity() public view returns(bool) {
+        return _unlockTime > block.timestamp;
+    }
+
+    /**
+     * @notice Lets the sale owner withdraw the LP tokens once the liquidity unlock date has progressed
+     */
+    function withdrawLiquidity() external isAdmin {
+        require(canWithdrawLiquidity(), "Cant withdraw LP tokens yet");
+        TransferHelper.safeTransfer(_pancakeswapV2LiquidityPair, msg.sender, IERC20(_pancakeswapV2LiquidityPair).balanceOf(address(this)));
     }
 }

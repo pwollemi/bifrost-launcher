@@ -60,7 +60,7 @@ describe("Bifrost", function () {
 
             await router.setPartnerToken(BUSD.address, true);
 
-            const feeAmount = await router.listingFeeInToken(BUSD.address);
+            const feeAmount = (await router.listingFeeInToken(BUSD.address)).mul(4).div(5); // discount 20% for BUSD
             const balance0 = await BusdContract.balanceOf(owner.address);
             await router.connect(addr1).payFee(BUSD.address);
             const balance1 = await BusdContract.balanceOf(owner.address);
@@ -263,7 +263,6 @@ describe("Bifrost", function () {
 
             // TODO: CAUTION HERE!!!
             await rainbowToken.excludeFromFee(sale.address);
-            await rainbowToken.excludeFromFee(await sale._launcher());
 
             const liqudityAmount = await sale._liquidityAmount();
             const liquidtyTokens = liqudityAmount.mul(liquidity).div(1e4);

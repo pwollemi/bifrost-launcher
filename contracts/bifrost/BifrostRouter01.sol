@@ -30,7 +30,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
-    address public constant RAINBOW = 0x673da443da2f6ae7c5c660a9f0d3dd24d1643d36;
+    address public constant RAINBOW = 0x673Da443da2f6aE7c5c660A9F0D3DD24d1643D36;
 
     uint256 private _id;                           // Increments for each sale that launches
     
@@ -150,7 +150,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
 
         // Gets the fee in tokens, then takes a percentage discount to incentivize people paying in
         // tokens.
-        uint256 feeInToken = listingFeeInToken(token).mul(totalPercentage.sub(discount)).div(1e4);
+        uint256 feeInToken = listingFeeInToken(token).mul(_totalPercentage.sub(discount)).div(1e4);
         TransferHelper.safeTransferFrom(token, msg.sender, owner(), feeInToken);
         _feePaid[msg.sender] = true;
     }
@@ -297,7 +297,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         _partnerDiscount = partnerDiscount;
     }
     function partnerDiscount() public view returns (uint256) { return _partnerDiscount; }
-    function setRainbowDiscount(uint256 rainbowDiscount) external onlyOwnwer {
+    function setRainbowDiscount(uint256 rainbowDiscount) external onlyOwner {
         _rainbowDiscount = rainbowDiscount;
     }
     function rainbowDiscount() public view returns (uint256) { return _rainbowDiscount; }
