@@ -33,6 +33,7 @@ describe("Bifrost", function () {
 
     let rainbowToken;
     let router;
+    let whitelist;
 
     before(async function () {
         [owner, addr1, addr2, addr3] = await ethers.getSigners();
@@ -52,6 +53,17 @@ describe("Bifrost", function () {
 
         await rainbowToken.transfer(addr1.address, await ethers.utils.parseUnits("100000", 9));
         await rainbowToken.excludeFromFee(router.address);
+
+        const whitelistFactory = await ethers.getContractFactory("Whitelist");
+        whitelist = await whitelistFactory.deploy();
+        await whitelist.deployed();
+    
+        const signers = await ethers.getSigners();
+        const fakeUsers = signers.map((signer, i) => ({
+            wallet: signer.address,
+            maxAlloc: ethers.constants.MaxUint256
+        }));
+        await whitelist.addToWhitelist(fakeUsers);
     });
 
     describe("BifrostRouter", function () {
@@ -165,6 +177,7 @@ describe("Bifrost", function () {
             const startTime = (await latest()).toNumber() + 86400;
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
+            await sale.setWhitelist(whitelist.address);
 
             const raisedBefore = await sale._raised();
             const routerBalance = await ethers.provider.getBalance(router.address);
@@ -188,6 +201,7 @@ describe("Bifrost", function () {
             const startTime = (await latest()).toNumber() + 86400;
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
+            await sale.setWhitelist(whitelist.address);
 
             const raisedBefore = await sale._raised();
             const routerBalance = await ethers.provider.getBalance(router.address);
@@ -237,6 +251,7 @@ describe("Bifrost", function () {
             const startTime = (await latest()).toNumber() + 86400;
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
+            await sale.setWhitelist(whitelist.address);
 
             // not successful at first
             expect(await sale.successful()).to.be.equal(false);
@@ -256,7 +271,8 @@ describe("Bifrost", function () {
             const startTime = (await latest()).toNumber() + 86400;
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
-            
+            await sale.setWhitelist(whitelist.address);
+
             const raised = soft * 2;
             await setNextBlockTimestamp(startTime);
             await sale.connect(addr2).deposit({ value: raised });

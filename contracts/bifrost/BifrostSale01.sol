@@ -22,6 +22,7 @@ import 'contracts/uniswap/TransferHelper.sol';
 
 import 'contracts/bifrost/IBifrostRouter01.sol';
 import 'contracts/bifrost/IBifrostSale01.sol';
+import 'contracts/bifrost/IWhitelist.sol';
 
 /**
  * @notice A Bifrost Sale
@@ -110,13 +111,11 @@ contract BifrostSale01 is IBifrostSale01, Context {
     uint256   public _start;         // The start date in UNIX seconds of the presale
     uint256   public _end;           // The end date in UNIX seconds of the presale
     uint256   public _unlockTime;    // The timestamp for when the liquidity lock should end
+    address   public _whitelist;     // Whitelist contract address
 
     /**
      * @notice TODO: SETTINGS TO IMPLEMENT
      */
-    bool      public                  _useWhitelist;   // Whether the presale is public or private
-    address[] private                 _whitelist;      // Addresses that are able to partake in the sale (unused if useWhitelist is false)
-    mapping (address => bool) private _isWhitelisted;  // Whether or not an address is able to partake
     //bool      public _useNative;     // Whether the to pair with the fundamental crypto coin 
     //address   public _tokenB;        // The token that will be used if useNative is false
 
@@ -215,6 +214,10 @@ contract BifrostSale01 is IBifrostSale01, Context {
         return IERC20(_token).balanceOf(address(this)) >= _totalTokens;
     }
 
+    function setWhitelist(address wl) external isAdmin {
+        _whitelist = wl;
+    }
+
     /**
      * @notice For users to deposit into the sale
      * @dev This entitles msg.sender to (amount * _presaleRate) after a successful sale
@@ -274,6 +277,8 @@ contract BifrostSale01 is IBifrostSale01, Context {
      */
     function _deposit(address user, uint256 amount) internal {
         if (running()) {
+            (, uint256 allo) = IWhitelist(_whitelist).getUser(user);
+            require(allo >= amount, "deposit amount exceeds allocation");
             _deposited[user] = amount;
             _raised = _raised.add(amount);
         } else {
