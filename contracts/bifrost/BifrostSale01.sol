@@ -164,7 +164,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
         uint256 liquidity, 
         uint256 startTime, 
         uint256 endTime
-    ) external {
+    ) external isAdmin {
         _softCap = soft;
         _hardCap = hard;
         _min = min;
@@ -229,19 +229,23 @@ contract BifrostSale01 is IBifrostSale01, Context {
     /**
      * @notice Finishes the sale, and if successful launches to PancakeSwap
      */
-    function finalize() override external isAdmin {
+    function finalize() override payable external isAdmin {
         require(successful() || block.timestamp > _end, "Cannot finalize sale yet!");
 
-        uint256 liquidityTokens = _liquidityAmount.mul(_liquidity).div(1e4);
-        uint256 liquidityBNB = _raised.mul(_liquidity).div(1e4);
+        // First take the developer cut
+        uint256 amount = _raised.mul(_router.launchingFee()).div(1e4);
+        TransferHelper.safeTransferETH(_routerAddress, amount);
 
-        // add liquidity
-        TransferHelper.safeApprove(_token, address(_pancakeswapV2Router), liquidityTokens);
-        _pancakeswapV2Router.addLiquidityETH{value: liquidityBNB}(_token, liquidityTokens, 0, 0, address(this), block.timestamp.add(300));
+        // Get the portion of liquidity from the leftovers
+        uint256 totalBNB = _raised.sub(amount);
+        uint256 liquidityBNB = totalBNB.mul(_liquidity).div(1e4);
+
+        // Add liquidity
+        TransferHelper.safeApprove(_token, address(_pancakeswapV2Router), _liquidityAmount);
+        _pancakeswapV2Router.addLiquidityETH{value: liquidityBNB}(_token, _liquidityAmount, 0, 0, address(this), block.timestamp.add(300));
         _pancakeswapV2LiquidityPair = IPancakeFactory(_pancakeswapV2Router.factory()).getPair(_token, _pancakeswapV2Router.WETH());
 
         TransferHelper.safeTransferETH(msg.sender, _raised.sub(liquidityBNB));
-        TransferHelper.safeTransfer(_token, msg.sender, _liquidityAmount.sub(liquidityTokens));
         _launched = true;
     }
  

@@ -53,6 +53,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     uint256 _totalProjects;        // Total amount of launched projects
     uint256 _totalParticipants;    // Total amount of people partcipating
     uint256 _totalLiquidityLocked; // Total liquidity locked
+    uint256 _savedInDiscounts;     // How much has been saved in discounts
 
     /**
      * @notice Sale Settings - these settings are used to ensure the configuration is compliant with what is fair for developers and users
@@ -142,17 +143,21 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
      * @notice Marks the sender as 
      */
     function payFee(address token) override external {
-        require(_partnerTokens[token], "Token not a partner token!");
         uint256 discount = _partnerDiscount;
         if (token == RAINBOW) {
             discount = _rainbowDiscount;
+        } else {
+            require(_partnerTokens[token], "Token not a partner token!");
         }
 
         // Gets the fee in tokens, then takes a percentage discount to incentivize people paying in
         // tokens.
-        uint256 feeInToken = listingFeeInToken(token).mul(_totalPercentage.sub(discount)).div(1e4);
+        uint256 feeInToken = listingFeeInToken(token);
+        uint256 discountedFee = feeInToken.mul(_totalPercentage.sub(discount)).div(1e4);
         TransferHelper.safeTransferFrom(token, msg.sender, owner(), feeInToken);
         _feePaid[msg.sender] = true;
+
+        _savedInDiscounts = _savedInDiscounts.add(feeInToken.sub(discountedFee));
     }
 
     /**
@@ -206,7 +211,6 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
 
         // If the person creating the sale hasn't paid the fee, then this call needs to pay the appropriate BNB. 
         if (!_feePaid[msg.sender]) {
-            console.log(listingFee());
             require(msg.value == listingFee(), "Not paying the listing fee");
             payable(owner()).transfer(msg.value);
         }
@@ -276,19 +280,19 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         );
     }
 
-    // /**
-    //  * @notice Returns the sale at a given ID
-    //  */
-    // function getSaleByID(uint256 id) external view returns(Sale) {
-    //     return _sales[_ids[id]];
-    // }
+    /**
+     * @notice Returns the sale at a given ID
+     */
+    function getSaleByID(uint256 id) external view returns(Sale) {
+        return _sales[_ids[id]];
+    }
     
-    // /**
-    //  * @notice Returns the sale of a given owner
-    //  */
-    // function getSaleByOwner(address owner) external view returns(Sale) {
-    //     return _sales[owner];
-    // }
+    /**
+     * @notice Returns the sale of a given owner
+     */
+    function getSaleByOwner(address owner) external view returns(Sale) {
+        return _sales[owner];
+    }
 
     /**
      * @notice GETTERS AND SETTERS
