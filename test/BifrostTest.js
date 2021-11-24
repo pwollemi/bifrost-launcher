@@ -180,7 +180,7 @@ describe("Bifrost", function () {
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
             whitelist = await ethers.getContractAt("Whitelist", await sale._whitelist());
-            await whitelist.addToWhitelist(fakeUsers);
+            await whitelist.connect(addr1).addToWhitelist(fakeUsers);
             
             const raisedBefore = await sale._raised();
             const routerBalance = await ethers.provider.getBalance(router.address);
@@ -205,7 +205,7 @@ describe("Bifrost", function () {
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
             whitelist = await ethers.getContractAt("Whitelist", await sale._whitelist());
-            await whitelist.addToWhitelist(fakeUsers);
+            await whitelist.connect(addr1).addToWhitelist(fakeUsers);
 
             const raisedBefore = await sale._raised();
             const routerBalance = await ethers.provider.getBalance(router.address);
@@ -256,7 +256,7 @@ describe("Bifrost", function () {
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
             whitelist = await ethers.getContractAt("Whitelist", await sale._whitelist());
-            await whitelist.addToWhitelist(fakeUsers);
+            await whitelist.connect(addr1).addToWhitelist(fakeUsers);
 
             // not successful at first
             expect(await sale.successful()).to.be.equal(false);
@@ -277,7 +277,7 @@ describe("Bifrost", function () {
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
             whitelist = await ethers.getContractAt("Whitelist", await sale._whitelist());
-            await whitelist.addToWhitelist(fakeUsers);
+            await whitelist.connect(addr1).addToWhitelist(fakeUsers);
 
             const raised = soft * 2;
             await setNextBlockTimestamp(startTime);

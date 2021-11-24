@@ -258,7 +258,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         if (!isPublicSale) {
             Whitelist wl = new Whitelist();
             newSale.setWhitelist(address(wl));
-            wl.transferOwnership(owner());
+            wl.transferOwnership(msg.sender);
         }
         
         _configure( 
