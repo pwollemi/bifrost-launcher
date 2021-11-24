@@ -95,7 +95,7 @@ describe("Bifrost", function () {
                 Math.floor(Date.now() / 1000), // startTime
                 Math.floor(Date.now() / 1000) + 3600, // endTime
                 60*60*24*30,
-                false,
+                true,
                 { value: listingFee }
             );
             const balance1 = await owner.getBalance();
@@ -122,7 +122,7 @@ describe("Bifrost", function () {
                 Math.floor(Date.now() / 1000), // startTime
                 Math.floor(Date.now() / 1000) + 3600, // endTime
                 60*60*24*30,
-                false
+                true
             );
             expect(await router.connect(addr1).getSale()).to.be.not.equal(ethers.constants.ZeroAddress);
         });
@@ -142,7 +142,7 @@ describe("Bifrost", function () {
                 Math.floor(Date.now() / 1000), // startTime
                 Math.floor(Date.now() / 1000) + 3600, // endTime
                 60*60*24*30,
-                false,
+                true,
                 { value: listingFee }
             );
 
@@ -168,7 +168,7 @@ describe("Bifrost", function () {
                 startTime,
                 endTime,
                 unLockTime,
-                true,
+                false,
                 { value: listingFee }
             );
             const saleParams = await router.connect(addr1).getSale();
@@ -181,7 +181,7 @@ describe("Bifrost", function () {
             const sale = await createSaleContract(startTime, endTime);
             whitelist = await ethers.getContractAt("Whitelist", await sale._whitelist());
             await whitelist.addToWhitelist(fakeUsers);
-
+            
             const raisedBefore = await sale._raised();
             const routerBalance = await ethers.provider.getBalance(router.address);
 
