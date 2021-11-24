@@ -21,6 +21,8 @@ import 'contracts/uniswap/TransferHelper.sol';
 import 'contracts/bifrost/IBifrostRouter01.sol';
 import 'contracts/bifrost/BifrostSale01.sol';
 import 'contracts/chainlink/AggregatorV3Interface.sol';
+import 'contracts/pancakeswap/IPancakePair.sol';
+import 'contracts/pancakeswap/IPancakeFactory.sol';
 import "hardhat/console.sol";
 
 /**
@@ -31,6 +33,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     using Address for address;
 
     address public constant RAINBOW = 0x673Da443da2f6aE7c5c660A9F0D3DD24d1643D36;
+    IPancakeRouter02 public _pancakeswapV2Router;   // The address of the router
 
     uint256 private _id;                           // Increments for each sale that launches
     
@@ -39,8 +42,9 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     Sale[] public                       _saleList; // A list of sales
 
     mapping (address => bool) public _partnerTokens; // A mapping of token contract addresses to a flag describing whether or not they can be used to pay a fee
-    mapping (address => address) public _aggregators;  // A mapping of token contract addresses to its price feed paired with BNB
     mapping (address => bool) public _feePaid;       // A mapping of wallet addresses to a flag for whether they paid the fee via a partner token or not
+
+    mapping (address => address) public _aggregators;  // token => price feed of BNB, can be chainlink aggregator with BNB
 
     uint256 public constant _totalPercentage = 10000; 
     uint256 public _partnerDiscount = 2000;  // Discount given for partner tokens 20%
@@ -89,6 +93,8 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         _minUnlockTimeSeconds   = 30 days; // The minimum amount of time before liquidity can be unlocked
         _minSaleTime            = 1 hours; // The minimum amount of time a sale has to run for
         _maxSaleTime            = 0; 
+
+        _pancakeswapV2Router = IPancakeRouter02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
     }
     
     /**
@@ -116,12 +122,11 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
      * @notice Sets a token as able to decide fees of Bifrost
      */
     function setPartnerToken(address token, bool b) override external onlyOwner {
-        require(_aggregators[token] != address(0), "Set price feed first");
         _partnerTokens[token] = b;
     }
 
     /**
-     * @notice Sets a token price feed
+     * @notice Sets a token price feed of chainlink
      */
     function setPriceFeed(address token, address feed) override external onlyOwner {
         _aggregators[token] = feed;
@@ -131,12 +136,33 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
      * @notice Sets a token price feed
      */
     function listingFeeInToken(address token) public view returns (uint256) {
-        AggregatorV3Interface aggregator = AggregatorV3Interface(_aggregators[token]);
-        (, int256 answer, , , ) = aggregator.latestRoundData();
-        require(answer > 0, "Invalid price feed");
+        uint256 bnbAmountOfOneToken = type(uint256).max;
+        uint256 decimals = 18; // price decimals
 
-        uint256 decimals = aggregator.decimals();
-        return _listingFee * (10 ** decimals) / uint256(answer);
+        if (_aggregators[token] != address(0)) { // if chainlink aggregator is set
+            AggregatorV3Interface aggregator = AggregatorV3Interface(_aggregators[token]);
+            (, int256 answer, , , ) = aggregator.latestRoundData();
+            require(answer > 0, "Invalid price feed");
+            decimals = aggregator.decimals();
+            bnbAmountOfOneToken = uint256(answer);
+        } else { // use pancake pair
+            IPancakePair pair = IPancakePair(IPancakeFactory(_pancakeswapV2Router.factory()).getPair(token, _pancakeswapV2Router.WETH()));
+            address token0 = pair.token0();
+            address token1 = pair.token1();
+            uint256 decimals0 = IERC20(token0).decimals();
+            uint256 decimals1 = IERC20(token1).decimals();
+
+            (uint112 reserve0, uint112 reserve1, ) = pair.getReserves();
+            // avoid mul and div by 0
+            if (reserve0 > 0 && reserve1 > 0) {
+                if (token == token0) {
+                    bnbAmountOfOneToken = (10**(decimals + decimals0 - decimals1) * uint256(reserve1)) / uint256(reserve0);
+                } else {
+                    bnbAmountOfOneToken = (10**(decimals + decimals1 - decimals0) * uint256(reserve0)) / uint256(reserve1);
+                }
+            }
+        }
+        return _listingFee * (10 ** decimals) / uint256(bnbAmountOfOneToken);
     }
 
     /**
@@ -153,8 +179,8 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         // Gets the fee in tokens, then takes a percentage discount to incentivize people paying in
         // tokens.
         uint256 feeInToken = listingFeeInToken(token);
-        uint256 discountedFee = feeInToken.mul(_totalPercentage.sub(discount)).div(1e4);
-        TransferHelper.safeTransferFrom(token, msg.sender, owner(), feeInToken);
+        uint256 discountedFee = feeInToken.mul(_totalPercentage.sub(discount)).div(_totalPercentage);
+        TransferHelper.safeTransferFrom(token, msg.sender, owner(), discountedFee);
         _feePaid[msg.sender] = true;
 
         _savedInDiscounts = _savedInDiscounts.add(feeInToken.sub(discountedFee));
@@ -283,14 +309,14 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     /**
      * @notice Returns the sale at a given ID
      */
-    function getSaleByID(uint256 id) external view returns(Sale) {
+    function getSaleByID(uint256 id) external view returns(Sale memory) {
         return _sales[_ids[id]];
     }
     
     /**
      * @notice Returns the sale of a given owner
      */
-    function getSaleByOwner(address owner) external view returns(Sale) {
+    function getSaleByOwner(address owner) external view returns(Sale memory) {
         return _sales[owner];
     }
 
@@ -313,7 +339,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     function setLaunchingFee(uint256 launchingFee) external onlyOwner {
         _launchingFee = launchingFee;
     }
-    function launchingFee() public view returns (uint256) {return _launchingFee;}
+    function launchingFee() public override view returns (uint256) {return _launchingFee;}
 
     function setMinimumLiquidityPercentage(uint256 liquidityPercentage) external onlyOwner {
         _minLiquidityPercentage = liquidityPercentage;

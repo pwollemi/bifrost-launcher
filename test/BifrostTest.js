@@ -46,7 +46,9 @@ describe("Bifrost", function () {
         rainbowToken = await RainbowContract.deploy();
         router = await RouterContract.deploy();
 
+        // console.log((await router.listingFeeInToken(BUSD.address)).toString());
         await router.setPriceFeed(BUSD.address, BUSD.chainlink);
+        // console.log((await router.listingFeeInToken(BUSD.address)).toString());
 
         BusdContract = await ethers.getContractAt("contracts/openzeppelin/IERC20.sol:IERC20", BUSD.address);
         await BusdContract.connect(addr1).approve(router.address, ethers.constants.MaxUint256);

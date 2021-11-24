@@ -229,7 +229,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
     /**
      * @notice Finishes the sale, and if successful launches to PancakeSwap
      */
-    function finalize() override payable external isAdmin {
+    function finalize() override external isAdmin {
         require(successful() || block.timestamp > _end, "Cannot finalize sale yet!");
 
         // First take the developer cut
