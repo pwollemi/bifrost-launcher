@@ -233,11 +233,11 @@ contract BifrostSale01 is IBifrostSale01, Context {
         require(successful() || block.timestamp > _end, "Cannot finalize sale yet!");
 
         // First take the developer cut
-        uint256 amount = _raised.mul(_router.launchingFee()).div(1e4);
-        TransferHelper.safeTransferETH(_routerAddress, amount);
+        uint256 devCut = _raised.mul(_router.launchingFee()).div(1e4);
+        TransferHelper.safeTransferETH(_routerAddress, devCut);
 
         // Get the portion of liquidity from the leftovers
-        uint256 totalBNB = _raised.sub(amount);
+        uint256 totalBNB = _raised.sub(devCut);
         uint256 liquidityBNB = totalBNB.mul(_liquidity).div(1e4);
 
         // Add liquidity
@@ -245,7 +245,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
         _pancakeswapV2Router.addLiquidityETH{value: liquidityBNB}(_token, _liquidityAmount, 0, 0, address(this), block.timestamp.add(300));
         _pancakeswapV2LiquidityPair = IPancakeFactory(_pancakeswapV2Router.factory()).getPair(_token, _pancakeswapV2Router.WETH());
 
-        TransferHelper.safeTransferETH(msg.sender, _raised.sub(liquidityBNB));
+        TransferHelper.safeTransferETH(msg.sender, totalBNB.sub(liquidityBNB));
         _launched = true;
     }
  

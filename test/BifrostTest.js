@@ -283,20 +283,16 @@ describe("Bifrost", function () {
             await rainbowToken.excludeFromFee(sale.address);
 
             const liqudityAmount = await sale._liquidityAmount();
-            const liquidtyTokens = liqudityAmount.mul(liquidity).div(1e4);
-            const liquidityBNB = raised * liquidity / 1e4;
 
-            // console.log(rainbowToken.address);
-            // const prouter = await ethers.getContractAt("IPancakeRouter02", "0x10ED43C718714eb63d5aA57B78B54704E256024E");
-            // const factory = await ethers.getContractAt("IPancakeFactory", await prouter.factory());
-            // const pair = await ethers.getContractAt("IPancakePair", await factory.getPair(rainbowToken.address, await prouter.WETH()))
-            // console.log(await pair.getReserves());
+            const prouter = await ethers.getContractAt("IPancakeRouter02", "0x10ED43C718714eb63d5aA57B78B54704E256024E");
+            const factory = await ethers.getContractAt("IPancakeFactory", await prouter.factory());
+            const pair = await ethers.getContractAt("IPancakePair", await factory.getPair(rainbowToken.address, await prouter.WETH()))
 
-            const rainbow0 = await rainbowToken.balanceOf(owner.address);
+            const rainbow0 = await rainbowToken.balanceOf(pair.address);
             await sale.finalize();
-            const rainbow1 = await rainbowToken.balanceOf(owner.address);
+            const rainbow1 = await rainbowToken.balanceOf(pair.address);
 
-            expect(rainbow1.sub(rainbow0)).to.be.equal(liqudityAmount.sub(liquidtyTokens));
+            expect(rainbow1.sub(rainbow0)).to.be.equal(liqudityAmount);
 
             // add a little more check to the pair
         });
