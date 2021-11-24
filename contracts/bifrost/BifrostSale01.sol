@@ -281,8 +281,10 @@ contract BifrostSale01 is IBifrostSale01, Context {
      */
     function _deposit(address user, uint256 amount) internal {
         if (running()) {
-            (, uint256 allo) = IWhitelist(_whitelist).getUser(user);
-            require(allo >= amount, "deposit amount exceeds allocation");
+            if (_whitelist != address(0)) {
+                (, uint256 allo) = IWhitelist(_whitelist).getUser(user);
+                require(allo >= amount, "deposit amount exceeds allocation");
+            }
             _deposited[user] = amount;
             _raised = _raised.add(amount);
         } else {
