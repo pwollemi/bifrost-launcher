@@ -20,6 +20,7 @@ import 'contracts/uniswap/TransferHelper.sol';
 
 import 'contracts/bifrost/IBifrostRouter01.sol';
 import 'contracts/bifrost/BifrostSale01.sol';
+import 'contracts/bifrost/Whitelist.sol';
 import 'contracts/chainlink/AggregatorV3Interface.sol';
 import 'contracts/pancakeswap/IPancakePair.sol';
 import 'contracts/pancakeswap/IPancakeFactory.sol';
@@ -227,7 +228,8 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         uint256 liquidity, 
         uint256 start, 
         uint256 end, 
-        uint256 unlockTime
+        uint256 unlockTime,
+        bool isPublicSale
     ) override external payable {
         // Ensure the runner hasn't run a sale before
         require(!_sales[msg.sender].created, "This wallet is already managing a sale!");
@@ -252,6 +254,11 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         _ids[_id] = msg.sender;
         _id++;
         _saleList.push(_sales[msg.sender]);
+
+        if (!isPublicSale) {
+            Whitelist wl = new Whitelist();
+            newSale.setWhitelist(address(wl));
+        }
         
         _configure( 
             soft, 

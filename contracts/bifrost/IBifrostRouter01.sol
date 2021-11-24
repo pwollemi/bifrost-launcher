@@ -44,6 +44,7 @@ interface IBifrostRouter01 {
         uint256 liquidity, 
         uint256 start, 
         uint256 end, 
-        uint256 unlockTime
+        uint256 unlockTime,
+        bool isPublicSale
     ) external payable;
 }
