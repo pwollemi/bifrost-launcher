@@ -255,7 +255,8 @@ contract BifrostSale01 is IBifrostSale01, Context {
      * @notice Finishes the sale, and if successful launches to PancakeSwap
      */
     function finalize() override external isAdmin {
-        require(successful() || block.timestamp > _end, "Cannot finalize sale yet!");
+        require(successful(), "Cannot finalize sale yet!");
+        _end = block.timestamp;
 
         // First take the developer cut
         uint256 devCut = _raised.mul(_router.launchingFee()).div(1e4);
