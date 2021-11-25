@@ -255,12 +255,6 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         _id++;
         _saleList.push(_sales[msg.sender]);
 
-        if (!isPublicSale) {
-            Whitelist wl = new Whitelist();
-            newSale.setWhitelist(address(wl));
-            wl.transferOwnership(msg.sender);
-        }
-        
         _configure( 
             soft, 
             hard, 
@@ -270,7 +264,8 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
             listingRate, 
             liquidity, 
             start, 
-            end
+            end,
+            isPublicSale
         );
         
         // Transfer via the Router to avoid taxing
@@ -287,7 +282,8 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         uint256 listingRate, 
         uint256 liquidity, 
         uint256 start, 
-        uint256 end
+        uint256 end,
+        bool isPublicSale
     ) internal {
         _sales[msg.sender].saleContract.configure(
             soft, 
@@ -298,7 +294,8 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
             listingRate, 
             liquidity, 
             start, 
-            end
+            end,
+            isPublicSale
         );
     }
 

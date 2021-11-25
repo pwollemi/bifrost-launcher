@@ -33,8 +33,29 @@ describe("Bifrost", function () {
 
     let rainbowToken;
     let router;
-    let whitelist;
     let fakeUsers;
+
+    async function createSaleContract(startTime, endTime) {
+        const listingFee = await router.listingFee();
+        await rainbowToken.connect(addr1).approve(router.address, ethers.constants.MaxUint256);
+        await router.connect(addr1).createSale(
+            rainbowToken.address,
+            soft,
+            hard,
+            min,
+            max,
+            presaleRate,
+            listingRate,
+            liquidity,
+            startTime,
+            endTime,
+            unLockTime,
+            false,
+            { value: listingFee }
+        );
+        const saleParams = await router.connect(addr1).getSale();
+        return await ethers.getContractAt("BifrostSale01", saleParams[3]);
+    }
 
     before(async function () {
         [owner, addr1, addr2, addr3] = await ethers.getSigners();
@@ -153,34 +174,22 @@ describe("Bifrost", function () {
     });
 
     describe("BifrostSale", function () {
-        async function createSaleContract(startTime, endTime) {
-            const listingFee = await router.listingFee();
-            await rainbowToken.connect(addr1).approve(router.address, ethers.constants.MaxUint256);
-            await router.connect(addr1).createSale(
-                rainbowToken.address,
-                soft,
-                hard,
-                min,
-                max,
-                presaleRate,
-                listingRate,
-                liquidity,
-                startTime,
-                endTime,
-                unLockTime,
-                false,
-                { value: listingFee }
-            );
-            const saleParams = await router.connect(addr1).getSale();
-            return await ethers.getContractAt("BifrostSale01", saleParams[3]);
-        }
+        it("cannot modify whitelist if sale is started", async () => {
+            const startTime = (await latest()).toNumber() + 86400;
+            const endTime = startTime + 3600;
+            const sale = await createSaleContract(startTime, endTime);
+            await sale.connect(addr1).addToWhitelist(fakeUsers);
+
+            await setNextBlockTimestamp(startTime);
+            await expect(sale.connect(addr1).addToWhitelist(fakeUsers)).to.be.revertedWith("Sale started");
+            await expect(sale.connect(addr1).removeFromWhitelist([addr2.address])).to.be.revertedWith("Sale started");
+        });
 
         it("deposit: all go to router before start", async () => {
             const startTime = (await latest()).toNumber() + 86400;
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
-            whitelist = await ethers.getContractAt("Whitelist", await sale._whitelist());
-            await whitelist.connect(addr1).addToWhitelist(fakeUsers);
+            await sale.connect(addr1).addToWhitelist(fakeUsers);
             
             const raisedBefore = await sale._raised();
             const routerBalance = await ethers.provider.getBalance(router.address);
@@ -204,8 +213,7 @@ describe("Bifrost", function () {
             const startTime = (await latest()).toNumber() + 86400;
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
-            whitelist = await ethers.getContractAt("Whitelist", await sale._whitelist());
-            await whitelist.connect(addr1).addToWhitelist(fakeUsers);
+            await sale.connect(addr1).addToWhitelist(fakeUsers);
 
             const raisedBefore = await sale._raised();
             const routerBalance = await ethers.provider.getBalance(router.address);
@@ -255,8 +263,7 @@ describe("Bifrost", function () {
             const startTime = (await latest()).toNumber() + 86400;
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
-            whitelist = await ethers.getContractAt("Whitelist", await sale._whitelist());
-            await whitelist.connect(addr1).addToWhitelist(fakeUsers);
+            await sale.connect(addr1).addToWhitelist(fakeUsers);
 
             // not successful at first
             expect(await sale.successful()).to.be.equal(false);
@@ -276,8 +283,7 @@ describe("Bifrost", function () {
             const startTime = (await latest()).toNumber() + 86400;
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
-            whitelist = await ethers.getContractAt("Whitelist", await sale._whitelist());
-            await whitelist.connect(addr1).addToWhitelist(fakeUsers);
+            await sale.connect(addr1).addToWhitelist(fakeUsers);
 
             const raised = soft * 2;
             await setNextBlockTimestamp(startTime);
@@ -299,6 +305,44 @@ describe("Bifrost", function () {
             expect(rainbow1.sub(rainbow0)).to.be.equal(liqudityAmount);
 
             // add a little more check to the pair
+        });
+    });
+
+    describe("Cancel Sale", async () => {
+        it("only admin can cancel the sale", async () => {
+            const startTime = (await latest()).toNumber() + 86400;
+            const endTime = startTime + 3600;
+            const sale = await createSaleContract(startTime, endTime);
+            await expect(sale.connect(addr2).cancel()).to.be.revertedWith("Caller isnt an admin");
+            await sale.connect(addr1).cancel();
+        });
+
+        it("cannot cancel if sale started", async () => {
+            const startTime = (await latest()).toNumber() + 86400;
+            const endTime = startTime + 3600;
+            const sale = await createSaleContract(startTime, endTime);
+            await setNextBlockTimestamp(startTime);
+            await expect(sale.connect(addr1).cancel()).to.be.revertedWith("Sale started");
+        });
+
+        it("cannot deposit if sale is canceled", async () => {
+            const startTime = (await latest()).toNumber() + 86400;
+            const endTime = startTime + 3600;
+            const sale = await createSaleContract(startTime, endTime);
+            await sale.cancel();
+            await setNextBlockTimestamp(startTime);
+
+            await setNextBlockTimestamp(startTime);
+
+            // deposit via direct transfer
+            await expect(addr1.sendTransaction({
+                to: sale.address,
+                value: ethers.utils.parseEther("0.1")
+            })).to.be.revertedWith("Sale is canceled");
+
+            await expect(sale.connect(addr2).deposit({
+                value: ethers.utils.parseEther("0.2")
+            })).to.be.revertedWith("Sale is canceled");
         });
     });
 });

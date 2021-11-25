@@ -22,7 +22,7 @@ import 'contracts/uniswap/TransferHelper.sol';
 
 import 'contracts/bifrost/IBifrostRouter01.sol';
 import 'contracts/bifrost/IBifrostSale01.sol';
-import 'contracts/bifrost/IWhitelist.sol';
+import 'contracts/bifrost/Whitelist.sol';
 
 /**
  * @notice A Bifrost Sale
@@ -41,6 +41,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
      */
     bool public _prepared;   // True when the sale has been prepared to start by the owner
     bool public _launched;   // Whether the sale has been finalized and launched
+    bool public _canceled;   // This sale is canceled
 
     /**
      * @notice Launch Settings
@@ -53,6 +54,14 @@ contract BifrostSale01 is IBifrostSale01, Context {
      */
     modifier isAdmin {
         require(_routerAddress == msg.sender || _owner == msg.sender || _runner == msg.sender, "Caller isnt an admin");
+        _;
+    }
+
+    /**
+     * @notice Checks if the caller is the Sale owner
+     */
+    modifier isRunner {
+        require(_routerAddress == msg.sender || _owner == msg.sender || _runner == msg.sender, "Caller isnt an runner");
         _;
     }
 
@@ -145,7 +154,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
         _owner = owner;
         _runner  = runner;
         _token = token;
-        
+
         // Let the router control payments!
         IERC20(token).approve(router, type(uint256).max);
 
@@ -163,7 +172,8 @@ contract BifrostSale01 is IBifrostSale01, Context {
         uint256 listingRate, 
         uint256 liquidity, 
         uint256 startTime, 
-        uint256 endTime
+        uint256 endTime,
+        bool isPublicSale
     ) external isAdmin {
         _softCap = soft;
         _hardCap = hard;
@@ -178,6 +188,10 @@ contract BifrostSale01 is IBifrostSale01, Context {
         _saleAmount      = _presaleRate.mul(_hardCap);
         _liquidityAmount = _listingRate.mul(_hardCap).mul(_liquidity).div(1e4);
         _totalTokens = _saleAmount.add(_liquidityAmount);
+
+        if(!isPublicSale) {
+            _whitelist = address(new Whitelist());
+        }
     }
 
     /**
@@ -214,8 +228,19 @@ contract BifrostSale01 is IBifrostSale01, Context {
         return IERC20(_token).balanceOf(address(this)) >= _totalTokens;
     }
 
-    function setWhitelist(address wl) external isAdmin {
-        _whitelist = wl;
+    function addToWhitelist(Whitelist.UserData[] memory users) external isRunner {
+        require(block.timestamp < _start, "Sale started");
+        Whitelist(_whitelist).addToWhitelist(users);
+    }
+
+    function removeFromWhitelist(address[] memory addrs) external isRunner {
+        require(block.timestamp < _start, "Sale started");
+        Whitelist(_whitelist).removeFromWhitelist(addrs);
+    }
+
+    function cancel() external isAdmin {
+        require(block.timestamp < _start, "Sale started");
+        _canceled = true;
     }
 
     /**
@@ -280,9 +305,10 @@ contract BifrostSale01 is IBifrostSale01, Context {
      * @notice 
      */
     function _deposit(address user, uint256 amount) internal {
+        require(!_canceled, "Sale is canceled");
         if (running()) {
             if (_whitelist != address(0)) {
-                (, uint256 allo) = IWhitelist(_whitelist).getUser(user);
+                (, uint256 allo) = Whitelist(_whitelist).getUser(user);
                 require(allo >= amount, "deposit amount exceeds allocation");
             }
             _deposited[user] = amount;
