@@ -95,7 +95,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         _minSaleTime            = 1 hours; // The minimum amount of time a sale has to run for
         _maxSaleTime            = 0; 
 
-        _pancakeswapV2Router = IPancakeRouter02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
+        _pancakeswapV2Router = IPancakeRouter02(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3); //0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3  0x10ED43C718714eb63d5aA57B78B54704E256024E
     }
     
     /**
@@ -207,11 +207,11 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     ) override public view {
         require(liquidity >= minimumLiquidityPercentage(), "Liquidity percentage below minimum");
         require(soft.mul(1e5).div(hard).div(10) >= capRatio(), "Soft cap too low compared to hard cap");
-        require(end.sub(start) >= minimumSaleTime(), "Sale time too short");
+        require(end.sub(start).add(1) >= minimumSaleTime(), "Sale time too short");
         if (maximumSaleTime() > 0) {
             require(end.sub(start) < maximumSaleTime(), "Sale time too long");
         }
-        require(minimumUnlockTimeSeconds() <= unlockTime, "Minimum unlock time is too low");
+        require(unlockTime >= minimumUnlockTimeSeconds(), "Minimum unlock time is too low");
     }
 
     /**
@@ -269,8 +269,11 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         );
         
         // Transfer via the Router to avoid taxing
-        IERC20(token).transferFrom(msg.sender, address(this), newSale.totalTokens());
-        IERC20(token).transfer(address(newSale), newSale.totalTokens());
+        TransferHelper.safeTransferFrom(token, msg.sender, address(this), newSale.totalTokens());
+
+        // Incase tax wasn't disabled, transfer as many tokens as we can and ask the developer to
+        // fix this with a top up.
+        TransferHelper.safeTransfer(token, address(newSale), IERC20(token).balanceOf(address(this)));
     }
 
     function _configure(
