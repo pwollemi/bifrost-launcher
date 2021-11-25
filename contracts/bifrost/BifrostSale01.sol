@@ -185,8 +185,9 @@ contract BifrostSale01 is IBifrostSale01, Context {
         _start = startTime;
         _end = endTime;
 
-        _saleAmount      = _presaleRate.mul(_hardCap);
-        _liquidityAmount = _listingRate.mul(_hardCap).mul(_liquidity).div(1e4);
+        // 1e18 is BNB decimals, we will need update to token's decimal later
+        _saleAmount      = _presaleRate.mul(_hardCap).div(1e18);
+        _liquidityAmount = _listingRate.mul(_hardCap).div(1e18).mul(_liquidity).div(1e4);
         _totalTokens = _saleAmount.add(_liquidityAmount);
 
         if(!isPublicSale) {
@@ -287,7 +288,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
 
         // Give the user their tokens
         if(successful()) {
-            uint256 tokens = amount.mul(_presaleRate);
+            uint256 tokens = amount.mul(_presaleRate).div(1e18);
             TransferHelper.safeTransfer(_token, msg.sender, tokens);
         } else {
             // Otherwise return the user their BNB
