@@ -270,10 +270,13 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         
         // Transfer via the Router to avoid taxing
         TransferHelper.safeTransferFrom(token, msg.sender, address(this), newSale.totalTokens());
+        //IERC20(token).transferFrom(msg.sender, address(this), newSale.totalTokens());
 
         // Incase tax wasn't disabled, transfer as many tokens as we can and ask the developer to
-        // fix this with a top up.
+        // fix this with a top
         TransferHelper.safeTransfer(token, address(newSale), IERC20(token).balanceOf(address(this)));
+        //IERC20(token).transfer(address(newSale), IERC20(token).balanceOf(address(this)));
+
     }
 
     function _configure(
