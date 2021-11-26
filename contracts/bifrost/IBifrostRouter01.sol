@@ -45,6 +45,6 @@ interface IBifrostRouter01 {
         uint256 start, 
         uint256 end, 
         uint256 unlockTime,
-        bool isPublicSale
+        bool    whitelisted
     ) external payable;
 }

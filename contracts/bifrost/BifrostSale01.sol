@@ -119,7 +119,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
     uint256   public _liquidity;     // What perecentage of raised funds will be allocated for liquidity (100 = 1% - i.e. out of 10,000)
     uint256   public _start;         // The start date in UNIX seconds of the presale
     uint256   public _end;           // The end date in UNIX seconds of the presale
-    uint256   public _unlockTime;    // The timestamp for when the liquidity lock should end
+    uint256   public _unlockTime;    // The time in seconds that the liquidity lock should last
     address   public _whitelist;     // Whitelist contract address
 
     /**
@@ -140,7 +140,6 @@ contract BifrostSale01 is IBifrostSale01, Context {
     /**
      * @notice Creates a bifrost sale
      */
-     
     constructor(
         address payable router, 
         address owner, 
@@ -173,7 +172,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
         uint256 liquidity, 
         uint256 startTime, 
         uint256 endTime,
-        bool isPublicSale
+        bool    whitelisted
     ) external isAdmin {
         _softCap = soft;
         _hardCap = hard;
@@ -190,7 +189,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
         _liquidityAmount = _listingRate.mul(_hardCap).div(1e18).mul(_liquidity).div(1e4);
         _totalTokens = _saleAmount.add(_liquidityAmount);
 
-        if(!isPublicSale) {
+        if(whitelisted) {
             _whitelist = address(new Whitelist());
         }
     }
@@ -214,9 +213,18 @@ contract BifrostSale01 is IBifrostSale01, Context {
         return _liquidityAmount;
     }
 
-    /**
-     * @notice Returns the address of the Sale owner.
-     */
+    function raised() external view returns (uint256) {
+        return _raised;
+    }
+
+    function deposited() external view returns (uint256) {
+        return accountsDeposited(msg.sender);
+    }
+
+    function accountsDeposited(address account) public view returns (uint256) {
+        return _deposited[account];
+    }
+
     function getRunner() override public view returns (address) {
         return _runner;
     }
@@ -227,6 +235,16 @@ contract BifrostSale01 is IBifrostSale01, Context {
 
     function canStart() override public view returns(bool) {
         return IERC20(_token).balanceOf(address(this)) >= _totalTokens;
+    }
+
+    function setWhitelist() external isRunner {
+        require(_whitelist == address(0), "There is already a whitelist!");
+        _whitelist = address(new Whitelist());
+    }
+
+    function removeWhitelist() external isRunner {
+        require(_whitelist != address(0), "There isn't a whitelist set");
+        _whitelist = address(0);
     }
 
     function addToWhitelist(Whitelist.UserData[] memory users) external isRunner {
@@ -309,6 +327,8 @@ contract BifrostSale01 is IBifrostSale01, Context {
     function _deposit(address user, uint256 amount) internal {
         require(!_canceled, "Sale is canceled");
         if (running()) {
+            require(amount >= _min, "Amount must be above min");
+            require(amount <= _max, "Amount must be below max");
             if (_whitelist != address(0)) {
                 (, uint256 allo) = Whitelist(_whitelist).getUser(user);
                 require(allo >= amount, "deposit amount exceeds allocation");
@@ -324,7 +344,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
      * @notice Returns true if the admin is able to withdraw the LP tokens
      */
     function canWithdrawLiquidity() public view returns(bool) {
-        return _unlockTime > block.timestamp;
+        return _end.add(_unlockTime) > block.timestamp;
     }
 
     /**
@@ -333,5 +353,61 @@ contract BifrostSale01 is IBifrostSale01, Context {
     function withdrawLiquidity() external isAdmin {
         require(canWithdrawLiquidity(), "Cant withdraw LP tokens yet");
         TransferHelper.safeTransfer(_pancakeswapV2LiquidityPair, msg.sender, IERC20(_pancakeswapV2LiquidityPair).balanceOf(address(this)));
+    }
+
+    function token() external view returns(address) {
+        return _token;
+    }
+
+    function softCap() external view returns(uint256) {
+        return _softCap;
+    }
+
+    function hardCap() external view returns(uint256) {
+        return _hardCap;
+    }
+
+    function min() external view returns(uint256) {
+        return _min;
+    }
+
+    function max() external view returns(uint256) {
+        return _max;
+    }
+
+    function presaleRate() external view returns(uint256) {
+        return _presaleRate;
+    }
+
+    function listingRate() external view returns(uint256) {
+        return _listingRate;
+    }
+
+    function liquidity() external view returns(uint256) {
+        return _liquidity;
+    }
+
+    function start() external view returns(uint256) {
+        return _start;
+    }
+
+    function end() external view returns(uint256) {
+        return _end;
+    }
+
+    function unlockTime() external view returns(uint256) {
+        return _unlockTime;
+    }
+
+    function isWhitelisted() external view returns(bool) {
+        return _whitelist != address(0);
+    }
+
+    function launched() external view returns(bool) {
+        return _launched;
+    }
+
+    function canceled() external view returns(bool) {
+        return _canceled;
     }
 }

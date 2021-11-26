@@ -187,6 +187,14 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         _savedInDiscounts = _savedInDiscounts.add(feeInToken.sub(discountedFee));
     }
 
+    function getFeePaid() external view returns(bool) {
+        return _feePaid[msg.sender];
+    }
+
+    function resetFee(address account) external onlyOwner {
+        _feePaid[account] = false;
+    }
+
     /**
      * @notice Returns how many sale ids there are
      */
@@ -207,6 +215,8 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     ) override public view {
         require(liquidity >= minimumLiquidityPercentage(), "Liquidity percentage below minimum");
         require(soft.mul(1e5).div(hard).div(10) >= capRatio(), "Soft cap too low compared to hard cap");
+        require(start > block.timestamp, "Sale time cant start in the past!");
+        require(end > start, "Sale end has to be in the future from sale start");
         require(end.sub(start).add(1) >= minimumSaleTime(), "Sale time too short");
         if (maximumSaleTime() > 0) {
             require(end.sub(start) < maximumSaleTime(), "Sale time too long");
@@ -229,10 +239,10 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         uint256 start, 
         uint256 end, 
         uint256 unlockTime,
-        bool isPublicSale
+        bool    whitelisted
     ) override external payable {
         // Ensure the runner hasn't run a sale before
-        require(!_sales[msg.sender].created, "This wallet is already managing a sale!");
+        //TODO: add back require(!_sales[msg.sender].created, "This wallet is already managing a sale!");
 
         // Validates the sale config
         validate(soft, hard, liquidity, start, end, unlockTime);
@@ -251,9 +261,6 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
             unlockTime
         );
         _sales[msg.sender] = Sale(msg.sender, true, _id, newSale);
-        _ids[_id] = msg.sender;
-        _id++;
-        _saleList.push(_sales[msg.sender]);
 
         _configure( 
             soft, 
@@ -265,18 +272,17 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
             liquidity, 
             start, 
             end,
-            isPublicSale
+            whitelisted
         );
         
         // Transfer via the Router to avoid taxing
-        TransferHelper.safeTransferFrom(token, msg.sender, address(this), newSale.totalTokens());
+        TransferHelper.safeTransferFrom(token, msg.sender, address(this), _sales[msg.sender].saleContract.totalTokens());
         //IERC20(token).transferFrom(msg.sender, address(this), newSale.totalTokens());
 
         // Incase tax wasn't disabled, transfer as many tokens as we can and ask the developer to
         // fix this with a top
-        TransferHelper.safeTransfer(token, address(newSale), IERC20(token).balanceOf(address(this)));
+        TransferHelper.safeTransfer(token, address(_sales[msg.sender].saleContract), IERC20(token).balanceOf(address(this)));
         //IERC20(token).transfer(address(newSale), IERC20(token).balanceOf(address(this)));
-
     }
 
     function _configure(
@@ -289,7 +295,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         uint256 liquidity, 
         uint256 start, 
         uint256 end,
-        bool isPublicSale
+        bool    whitelisted
     ) internal {
         _sales[msg.sender].saleContract.configure(
             soft, 
@@ -301,8 +307,12 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
             liquidity, 
             start, 
             end,
-            isPublicSale
+            whitelisted
         );
+        
+        _saleList.push(_sales[msg.sender]);
+        _ids[_id] = msg.sender;
+        _id++;
     }
 
     /**
@@ -320,15 +330,25 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     /**
      * @notice Returns the sale at a given ID
      */
-    function getSaleByID(uint256 id) external view returns(Sale memory) {
-        return _sales[_ids[id]];
+    function getSaleByID(uint256 id) external view returns(address, bool, uint256, address) {
+        return (
+            _sales[_ids[id]].runner,
+            _sales[_ids[id]].created,
+            _sales[_ids[id]].id,
+            address(_sales[_ids[id]].saleContract)
+        );
     }
     
     /**
      * @notice Returns the sale of a given owner
      */
-    function getSaleByOwner(address owner) external view returns(Sale memory) {
-        return _sales[owner];
+    function getSaleByOwner(address owner) external view returns(address, bool, uint256, address) {
+        return (
+            _sales[owner].runner,
+            _sales[owner].created,
+            _sales[owner].id,
+            address(_sales[owner].saleContract)
+        );
     }
 
     /**
