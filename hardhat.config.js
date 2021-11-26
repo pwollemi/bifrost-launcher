@@ -4,6 +4,7 @@ const fs = require('fs');
 require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-web3");
 require('hardhat-abi-exporter');
+require('hardhat-contract-sizer');
 
 const getValue = async (method) => {
     let r = null;
@@ -80,5 +81,11 @@ module.exports = {
     flat: true,
     spacing: 0,
     pretty: false,
+  },
+  contractSizer: {
+    alphaSort: true,
+    disambiguatePaths: false,
+    runOnCompile: true,
+    strict: true,
   }
 };

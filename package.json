@@ -19,5 +19,8 @@
     "hardhat-abi-exporter": "^2.3.0",
     "mocha": "^9.0.1",
     "web3": "^1.5.2"
+  },
+  "devDependencies": {
+    "hardhat-contract-sizer": "^2.1.1"
   }
 }
