@@ -59,6 +59,8 @@ contract Whitelist is Ownable {
 
         for (uint256 i = 0; i < users.length; i++) {
             UserData memory user = users[i];
+            // for now, allow any person in the list
+            user.maxAlloc = type(uint256).max;
             whitelistedUsers[user.wallet] = user;
 
             if (inserted[user.wallet] == false) {
