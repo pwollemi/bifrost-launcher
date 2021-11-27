@@ -1,9 +1,12 @@
 async function main() {
-    // We get the contract to deploy
-    const Greeter = await ethers.getContractFactory("Greeter");
-    const greeter = await Greeter.deploy("Hello, Hardhat!");
-  
-    console.log("Greeter deployed to:", greeter.address);
+    const [deployer] = await ethers.getSigners();
+
+    console.log("Deploying contracts with the account:", deployer.address);
+
+    const Router = await ethers.getContractFactory("BifrostRouter01");
+    const router = await Router.deploy();
+
+    console.log("Router address:", router.address);
 }
   
 main()
