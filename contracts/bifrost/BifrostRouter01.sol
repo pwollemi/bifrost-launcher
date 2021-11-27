@@ -20,10 +20,7 @@ import 'contracts/openzeppelin/IERC20.sol';
 import 'contracts/bifrost/IBifrostRouter01.sol';
 import 'contracts/bifrost/BifrostSale01.sol';
 import 'contracts/bifrost/Whitelist.sol';
-import 'contracts/chainlink/AggregatorV3Interface.sol';
-import 'contracts/pancakeswap/IPancakePair.sol';
-import 'contracts/pancakeswap/IPancakeFactory.sol';
-import "hardhat/console.sol";
+import 'contracts/bifrost/PriceFeed.sol';
 
 /**
  * @notice The official Bifrost smart contract
@@ -43,7 +40,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     mapping (address => bool) public _partnerTokens; // A mapping of token contract addresses to a flag describing whether or not they can be used to pay a fee
     mapping (address => bool) public _feePaid;       // A mapping of wallet addresses to a flag for whether they paid the fee via a partner token or not
 
-    mapping (address => address) public _aggregators;  // token => price feed of BNB, can be chainlink aggregator with BNB
+    PriceFeed _priceFeed;  // token => price feed of BNB, can be chainlink aggregator with BNB
 
     uint256 public constant _totalPercentage = 10000; 
     uint256 public _partnerDiscount = 2000;  // Discount given for partner tokens 20%
@@ -94,6 +91,8 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         _minSaleTime            = 1 hours; // The minimum amount of time a sale has to run for
         _maxSaleTime            = 0; 
 
+        _priceFeed = new PriceFeed(_listingFee);
+
         _pancakeswapV2Router = IPancakeRouter02(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3); //0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3  0x10ED43C718714eb63d5aA57B78B54704E256024E
     }
     
@@ -126,49 +125,9 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     }
 
     /**
-     * @notice Sets a token price feed of chainlink
-     */
-    function setPriceFeed(address token, address feed) override external onlyOwner {
-        _aggregators[token] = feed;
-    }
-
-    /**
-     * @notice Sets a token price feed
-     */
-    function listingFeeInToken(address token) public view returns (uint256) {
-        uint256 bnbAmountOfOneToken = type(uint256).max;
-        uint256 decimals = 18; // price decimals
-
-        if (_aggregators[token] != address(0)) { // if chainlink aggregator is set
-            AggregatorV3Interface aggregator = AggregatorV3Interface(_aggregators[token]);
-            (, int256 answer, , , ) = aggregator.latestRoundData();
-            require(answer > 0, "Invalid price feed");
-            decimals = aggregator.decimals();
-            bnbAmountOfOneToken = uint256(answer);
-        } else { // use pancake pair
-            IPancakePair pair = IPancakePair(IPancakeFactory(_pancakeswapV2Router.factory()).getPair(token, _pancakeswapV2Router.WETH()));
-            address token0 = pair.token0();
-            address token1 = pair.token1();
-            uint256 decimals0 = IERC20(token0).decimals();
-            uint256 decimals1 = IERC20(token1).decimals();
-
-            (uint112 reserve0, uint112 reserve1, ) = pair.getReserves();
-            // avoid mul and div by 0
-            if (reserve0 > 0 && reserve1 > 0) {
-                if (token == token0) {
-                    bnbAmountOfOneToken = (10**(decimals + decimals0 - decimals1) * uint256(reserve1)) / uint256(reserve0);
-                } else {
-                    bnbAmountOfOneToken = (10**(decimals + decimals1 - decimals0) * uint256(reserve0)) / uint256(reserve1);
-                }
-            }
-        }
-        return _listingFee * (10 ** decimals) / uint256(bnbAmountOfOneToken);
-    }
-
-    /**
      * @notice Marks the sender as 
      */
-    function payFee(address token) override external {
+    function payFee(address token) external {
         uint256 discount = _partnerDiscount;
         if (token == 0x673Da443da2f6aE7c5c660A9F0D3DD24d1643D36) {
             discount = _rainbowDiscount;
@@ -178,7 +137,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
 
         // Gets the fee in tokens, then takes a percentage discount to incentivize people paying in
         // tokens.
-        uint256 feeInToken = listingFeeInToken(token);
+        uint256 feeInToken = _priceFeed.listingFeeInToken(token);
         uint256 discountedFee = feeInToken.mul(_totalPercentage.sub(discount)).div(_totalPercentage);
         TransferHelper.safeTransferFrom(token, msg.sender, owner(), discountedFee);
         _feePaid[msg.sender] = true;
@@ -192,6 +151,10 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
 
     function resetFee(address account) external onlyOwner {
         _feePaid[account] = false;
+    }
+
+    function priceFeed() external view returns(address) {
+        return address(_priceFeed);
     }
 
     /**
@@ -323,7 +286,9 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         require(_sales[msg.sender].saleContract.launched(), "Sale must have launched!");
         require(!_sales[msg.sender].launched, "Already called this function!");
         _sales[msg.sender].launched = true;
-        _settings.launch(address(_sales[msg.sender].saleContract), raised, participants);
+        _totalProjects = _totalProjects.add(1);
+        _totalRaised = _totalRaised.add(raised);
+        _totalParticipants = _totalParticipants.add(participants);
     }
 
     /**
@@ -335,18 +300,6 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
             _sales[msg.sender].created,
             _sales[msg.sender].id,
             address(_sales[msg.sender].saleContract)
-        );
-    }
-
-    /**
-     * @notice Returns the sale at a given ID
-     */
-    function getSaleByID(uint256 id) external view returns(address, bool, uint256, address) {
-        return (
-            _sales[_ids[id]].runner,
-            _sales[_ids[id]].created,
-            _sales[_ids[id]].id,
-            address(_sales[_ids[id]].saleContract)
         );
     }
     
@@ -368,43 +321,54 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     function setPartnerDiscount(uint256 partnerDiscount) external onlyOwner {
         _partnerDiscount = partnerDiscount;
     }
+
     function partnerDiscount() public view returns (uint256) { return _partnerDiscount; }
+
     function setRainbowDiscount(uint256 rainbowDiscount) external onlyOwner {
         _rainbowDiscount = rainbowDiscount;
     }
+
     function rainbowDiscount() public view returns (uint256) { return _rainbowDiscount; }
+
     function setListingFee(uint256 listingFee) external onlyOwner {
         _listingFee = listingFee;
     }
+
     function listingFee() public view returns (uint256) { return _listingFee; }
 
     function setLaunchingFee(uint256 launchingFee) external onlyOwner {
         _launchingFee = launchingFee;
     }
-    function launchingFee() public override view returns (uint256) {return _launchingFee;}
+
+    function launchingFee() override public view returns (uint256) {return _launchingFee;}
 
     function setMinimumLiquidityPercentage(uint256 liquidityPercentage) external onlyOwner {
         _minLiquidityPercentage = liquidityPercentage;
     }
+
     function minimumLiquidityPercentage() public view returns (uint256) {return _minLiquidityPercentage;}
 
     function setMinimumCapRatio(uint256 minimumCapRatio) external onlyOwner {
         _minCapRatio = minimumCapRatio;
     }
+
     function capRatio() public view returns (uint256) {return _minCapRatio;}
 
     function setMinimumUnlockTime(uint256 minimumLiquidityUnlockTime) external onlyOwner {
         _minUnlockTimeSeconds = minimumLiquidityUnlockTime;
     }
+
     function minimumUnlockTimeSeconds() public view returns (uint256) {return _minUnlockTimeSeconds;}
 
     function setMinimumSaleTime(uint256 minSaleTime) external onlyOwner {
         _minSaleTime = minSaleTime;
     }
+
     function minimumSaleTime() public view returns (uint256) {return _minSaleTime;}
 
     function setMaximumSaleTime(uint256 maxSaleTime) external onlyOwner {
         _maxSaleTime = maxSaleTime;
     }
+
     function maximumSaleTime() public view returns (uint256) {return _maxSaleTime;}
 }

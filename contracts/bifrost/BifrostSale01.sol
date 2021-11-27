@@ -328,6 +328,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
     function _deposit(address user, uint256 amount) internal {
         require(!_canceled, "Sale is canceled");
         if (running()) {
+            require(_raised.add(amount) <= _hardCap, "This amount would exceed the hard cap");
             require(amount >= _min, "Amount must be above min");
             require(amount <= _max, "Amount must be below max");
             if (_whitelist != address(0)) {
