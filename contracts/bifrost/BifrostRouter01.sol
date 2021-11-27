@@ -16,7 +16,6 @@ import 'contracts/openzeppelin/Context.sol';
 import 'contracts/openzeppelin/Ownable.sol';
 import 'contracts/openzeppelin/SafeMath.sol';
 import 'contracts/openzeppelin/IERC20.sol';
-import 'contracts/uniswap/TransferHelper.sol';
 
 import 'contracts/bifrost/IBifrostRouter01.sol';
 import 'contracts/bifrost/BifrostSale01.sol';
@@ -33,7 +32,6 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
-    address public constant RAINBOW = 0x673Da443da2f6aE7c5c660A9F0D3DD24d1643D36;
     IPancakeRouter02 public _pancakeswapV2Router;   // The address of the router
 
     uint256 private _id;                           // Increments for each sale that launches
@@ -77,6 +75,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     struct Sale {
         address        runner;         // The person running the sale
         bool           created;        // Whether there is a sale created at this 
+        bool           launched;       // Whether the runner has called the "finalize()" function
         uint256        id;             // The ID of the sale on the network this Router was deployed on
         BifrostSale01  saleContract;   // The address of the sale contract
     }
@@ -171,7 +170,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
      */
     function payFee(address token) override external {
         uint256 discount = _partnerDiscount;
-        if (token == RAINBOW) {
+        if (token == 0x673Da443da2f6aE7c5c660A9F0D3DD24d1643D36) {
             discount = _rainbowDiscount;
         } else {
             require(_partnerTokens[token], "Token not a partner token!");
@@ -260,7 +259,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
             token, 
             unlockTime
         );
-        _sales[msg.sender] = Sale(msg.sender, true, _id, newSale);
+        _sales[msg.sender] = Sale(msg.sender, true, false, _id, newSale);
 
         _configure( 
             soft, 
@@ -276,13 +275,13 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         );
         
         // Transfer via the Router to avoid taxing
-        TransferHelper.safeTransferFrom(token, msg.sender, address(this), _sales[msg.sender].saleContract.totalTokens());
-        //IERC20(token).transferFrom(msg.sender, address(this), newSale.totalTokens());
+        //TransferHelper.safeTransferFrom(token, msg.sender, address(this), _sales[msg.sender].saleContract.totalTokens());
+        IERC20(token).transferFrom(msg.sender, address(this), newSale.totalTokens());
 
         // Incase tax wasn't disabled, transfer as many tokens as we can and ask the developer to
         // fix this with a top
-        TransferHelper.safeTransfer(token, address(_sales[msg.sender].saleContract), IERC20(token).balanceOf(address(this)));
-        //IERC20(token).transfer(address(newSale), IERC20(token).balanceOf(address(this)));
+        //TransferHelper.safeTransfer(token, address(_sales[msg.sender].saleContract), IERC20(token).balanceOf(address(this)));
+        IERC20(token).transfer(address(newSale), IERC20(token).balanceOf(address(this)));
     }
 
     function _configure(
@@ -313,6 +312,18 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         _saleList.push(_sales[msg.sender]);
         _ids[_id] = msg.sender;
         _id++;
+    }
+
+    /**
+     * @notice To be called by a sales "finalize()" function only
+     * @dev 
+     */
+    function launched(address sale, uint256 raised, uint256 participants) external {
+        require(address(_sales[msg.sender].saleContract) == sale, "Must be owner of sale");
+        require(_sales[msg.sender].saleContract.launched(), "Sale must have launched!");
+        require(!_sales[msg.sender].launched, "Already called this function!");
+        _sales[msg.sender].launched = true;
+        _settings.launch(address(_sales[msg.sender].saleContract), raised, participants);
     }
 
     /**

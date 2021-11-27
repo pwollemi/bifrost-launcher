@@ -247,7 +247,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
         _whitelist = address(0);
     }
 
-    function addToWhitelist(Whitelist.UserData[] memory users) external isRunner {
+    function addToWhitelist(address[] memory users) external isRunner {
         require(block.timestamp < _start, "Sale started");
         Whitelist(_whitelist).addToWhitelist(users);
     }
@@ -311,6 +311,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
         } else {
             // Otherwise return the user their BNB
             payable(msg.sender).transfer(amount);
+            _deposited[msg.sender].sub(amount);
         }
     }
 
@@ -330,10 +331,9 @@ contract BifrostSale01 is IBifrostSale01, Context {
             require(amount >= _min, "Amount must be above min");
             require(amount <= _max, "Amount must be below max");
             if (_whitelist != address(0)) {
-                (, uint256 allo) = Whitelist(_whitelist).getUser(user);
-                require(allo >= amount, "deposit amount exceeds allocation");
+                require(Whitelist(_whitelist).isWhitelisted(user), "User not whitelisted");
             }
-            _deposited[user] = amount;
+            _deposited[user] = _deposited[user].add(amount);
             _raised = _raised.add(amount);
         } else {
             _routerAddress.transfer(amount);

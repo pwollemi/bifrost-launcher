@@ -8,13 +8,6 @@ import "../libraries/AddressPagination.sol";
 contract Whitelist is Ownable {
     using AddressPagination for address[];
 
-    struct UserData {
-        // User wallet address
-        address wallet;
-        // Max allocation for this user in presale
-        uint256 maxAlloc;
-    }
-
     /// @notice Maximum input array length(used in `addToWhitelist`, `removeFromWhitelist`)
     uint256 public constant MAX_ARRAY_LENGTH = 50;
 
@@ -22,7 +15,7 @@ contract Whitelist is Ownable {
     uint256 public totalUsers;
 
     /// @dev White List
-    mapping(address => UserData) private whitelistedUsers;
+    mapping(address => address) private whitelistedUsers;
 
     // Users list
     address[] internal userlist;
@@ -51,25 +44,24 @@ contract Whitelist is Ownable {
      * @dev Only owner can do this operation
      * @param users List of user data
      */
-    function addToWhitelist(UserData[] memory users) external onlyOwner {
+    function addToWhitelist(address[] memory users) external onlyOwner {
         require(
             users.length <= MAX_ARRAY_LENGTH,
             "addToWhitelist: users length shouldn't exceed MAX_ARRAY_LENGTH"
         );
 
         for (uint256 i = 0; i < users.length; i++) {
-            UserData memory user = users[i];
+            address user = users[i];
             // for now, allow any person in the list
-            user.maxAlloc = type(uint256).max;
-            whitelistedUsers[user.wallet] = user;
+            whitelistedUsers[user] = user;
 
-            if (inserted[user.wallet] == false) {
-                inserted[user.wallet] = true;
-                indexOf[user.wallet] = userlist.length;
-                userlist.push(user.wallet);
+            if (inserted[user] == false) {
+                inserted[user] = true;
+                indexOf[user] = userlist.length;
+                userlist.push(user);
             }
 
-            emit AddedOrRemoved(true, user.wallet, block.timestamp);
+            emit AddedOrRemoved(true, user, block.timestamp);
         }
         totalUsers = userlist.length;
     }
@@ -87,7 +79,7 @@ contract Whitelist is Ownable {
 
         for (uint256 i = 0; i < addrs.length; i++) {
             // Ignore for non-existing users
-            if (whitelistedUsers[addrs[i]].wallet != address(0)) {
+            if (whitelistedUsers[addrs[i]] != address(0)) {
                 delete whitelistedUsers[addrs[i]];
                 emit AddedOrRemoved(false, addrs[i], block.timestamp);
             }
@@ -113,17 +105,11 @@ contract Whitelist is Ownable {
      * @param _user user wallet address
      * @return user wallet, kyc status, max allocation
      */
-    function getUser(address _user)
+    function isWhitelisted(address _user)
         external
         view
-        returns (
-            address,
-            uint256
-        )
+        returns (bool)
     {
-        return (
-            whitelistedUsers[_user].wallet,
-            whitelistedUsers[_user].maxAlloc
-        );
+        return inserted[_user];
     }
 }
