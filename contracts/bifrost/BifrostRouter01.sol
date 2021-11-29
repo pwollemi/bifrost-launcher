@@ -82,6 +82,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         _maxSaleTime            = 0; 
 
         // Set RAINBOW to 50% discount
+        _partnerTokens = new PartnerTokens();
         _partnerTokens.setPartnerToken(0x673Da443da2f6aE7c5c660A9F0D3DD24d1643D36, 5000);
 
         _priceFeed = new PriceFeed(_listingFee);

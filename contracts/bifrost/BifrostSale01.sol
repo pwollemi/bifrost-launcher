@@ -239,11 +239,11 @@ contract BifrostSale01 is IBifrostSale01, Context {
         return IERC20(_token).balanceOf(address(this)) >= _totalTokens;
     }
 
-    function userWhitelisted() external returns(bool) {
+    function userWhitelisted() external view returns(bool) {
         return _userWhitelisted(msg.sender);
     }
 
-    function _userWhitelisted(address account) public returns(bool) {
+    function _userWhitelisted(address account) public view returns(bool) {
         if (_whitelist != address(0)) {
             return Whitelist(_whitelist).isWhitelisted(account);
         } else {
