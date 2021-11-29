@@ -21,6 +21,7 @@ import 'contracts/bifrost/IBifrostRouter01.sol';
 import 'contracts/bifrost/BifrostSale01.sol';
 import 'contracts/bifrost/Whitelist.sol';
 import 'contracts/bifrost/PriceFeed.sol';
+import 'contracts/bifrost/PartnerTokens.sol';
 
 /**
  * @notice The official Bifrost smart contract
@@ -31,20 +32,13 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
 
     IPancakeRouter02 public _pancakeswapV2Router;   // The address of the router
 
-    uint256 private _id;                           // Increments for each sale that launches
-    
-    mapping (uint256 => address) public _ids;      // A mapping of sale IDs to owner addresses for O(1) retrieval
-    mapping (address => Sale)    public _sales;    // A mapping of sale owners to the sales
-    Sale[] public                       _saleList; // A list of sales
+    mapping (address => Sale) public _sales;    // A mapping of sale owners to the sales
 
-    mapping (address => bool) public _partnerTokens; // A mapping of token contract addresses to a flag describing whether or not they can be used to pay a fee
+    PartnerTokens _partnerTokens; // A mapping of token contract addresses to a flag describing whether or not they can be used to pay a fee
+    PriceFeed _priceFeed;  // token => price feed of BNB, can be chainlink aggregator with BNB
     mapping (address => bool) public _feePaid;       // A mapping of wallet addresses to a flag for whether they paid the fee via a partner token or not
 
-    PriceFeed _priceFeed;  // token => price feed of BNB, can be chainlink aggregator with BNB
-
     uint256 public constant _totalPercentage = 10000; 
-    uint256 public _partnerDiscount = 2000;  // Discount given for partner tokens 20%
-    uint256 public _rainbowDiscount = 2500;  // Discount given for RAINBOW 25% 
 
     /**
      * @notice Stats
@@ -52,7 +46,6 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     uint256 public _totalRaised;          // Total amount of BNB raised
     uint256 public _totalProjects;        // Total amount of launched projects
     uint256 public _totalParticipants;    // Total amount of people partcipating
-    uint256 public _totalLiquidityLocked; // Total liquidity locked
     uint256 public _savedInDiscounts;     // How much has been saved in discounts
 
     /**
@@ -73,7 +66,6 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         address        runner;         // The person running the sale
         bool           created;        // Whether there is a sale created at this 
         bool           launched;       // Whether the runner has called the "finalize()" function
-        uint256        id;             // The ID of the sale on the network this Router was deployed on
         BifrostSale01  saleContract;   // The address of the sale contract
     }
 
@@ -81,8 +73,6 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
      * @notice The constructor for the router
      */
     constructor () {
-        _id = 0;
-
         _listingFee             = 1e17;    // The flat fee in BNB (1e17 = 0.1 BNB)
         _launchingFee           = 100;     // The percentage of fees returned to the router owner for successful sales (100 = 1%)
         _minLiquidityPercentage = 5000;    // The minimum liquidity percentage (5000 = 50%)
@@ -90,6 +80,9 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         _minUnlockTimeSeconds   = 30 days; // The minimum amount of time before liquidity can be unlocked
         _minSaleTime            = 1 hours; // The minimum amount of time a sale has to run for
         _maxSaleTime            = 0; 
+
+        // Set RAINBOW to 50% discount
+        _partnerTokens.setPartnerToken(0x673Da443da2f6aE7c5c660A9F0D3DD24d1643D36, 5000);
 
         _priceFeed = new PriceFeed(_listingFee);
         _priceFeed.transferOwnership(msg.sender);
@@ -121,20 +114,16 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     /**
      * @notice Sets a token as able to decide fees of Bifrost
      */
-    function setPartnerToken(address token, bool b) override external onlyOwner {
-        _partnerTokens[token] = b;
+    function partnerTokens() external view returns(address)  {
+        return address(_partnerTokens);
     }
 
     /**
      * @notice Marks the sender as 
      */
     function payFee(address token) external {
-        uint256 discount = _partnerDiscount;
-        if (token == 0x673Da443da2f6aE7c5c660A9F0D3DD24d1643D36) {
-            discount = _rainbowDiscount;
-        } else {
-            require(_partnerTokens[token], "Token not a partner token!");
-        }
+        (bool partner, uint256 discount) = _partnerTokens.getPartner(token);
+        require(partner, "Token not a partner!");
 
         // Gets the fee in tokens, then takes a percentage discount to incentivize people paying in
         // tokens.
@@ -156,13 +145,6 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
 
     function priceFeed() external view returns(address) {
         return address(_priceFeed);
-    }
-
-    /**
-     * @notice Returns how many sale ids there are
-     */
-    function length() override external view returns(uint256) {
-        return _id;
     }
 
     /**
@@ -223,7 +205,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
             token, 
             unlockTime
         );
-        _sales[msg.sender] = Sale(msg.sender, true, false, _id, newSale);
+        _sales[msg.sender] = Sale(msg.sender, true, false, newSale);
 
         _configure( 
             soft, 
@@ -272,10 +254,6 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
             end,
             whitelisted
         );
-        
-        _saleList.push(_sales[msg.sender]);
-        _ids[_id] = msg.sender;
-        _id++;
     }
 
     /**
@@ -295,11 +273,10 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     /**
      * @notice Returns the sale of the caller
      */
-    function getSale() external view returns(address, bool, uint256, address) {
+    function getSale() external view returns(address, bool, address) {
         return (
             _sales[msg.sender].runner,
             _sales[msg.sender].created,
-            _sales[msg.sender].id,
             address(_sales[msg.sender].saleContract)
         );
     }
@@ -307,29 +284,13 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     /**
      * @notice Returns the sale of a given owner
      */
-    function getSaleByOwner(address owner) external view returns(address, bool, uint256, address) {
+    function getSaleByOwner(address owner) external view returns(address, bool, address) {
         return (
             _sales[owner].runner,
             _sales[owner].created,
-            _sales[owner].id,
             address(_sales[owner].saleContract)
         );
     }
-
-    /**
-     * @notice GETTERS AND SETTERS
-     */
-    function setPartnerDiscount(uint256 partnerDiscount) external onlyOwner {
-        _partnerDiscount = partnerDiscount;
-    }
-
-    function partnerDiscount() public view returns (uint256) { return _partnerDiscount; }
-
-    function setRainbowDiscount(uint256 rainbowDiscount) external onlyOwner {
-        _rainbowDiscount = rainbowDiscount;
-    }
-
-    function rainbowDiscount() public view returns (uint256) { return _rainbowDiscount; }
 
     function setListingFee(uint256 listingFee) external onlyOwner {
         _listingFee = listingFee;
