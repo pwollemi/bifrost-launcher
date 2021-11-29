@@ -24,6 +24,8 @@ import 'contracts/bifrost/IBifrostRouter01.sol';
 import 'contracts/bifrost/IBifrostSale01.sol';
 import 'contracts/bifrost/Whitelist.sol';
 
+import "hardhat/console.sol";
+
 /**
  * @notice A Bifrost Sale
  */
@@ -284,12 +286,14 @@ contract BifrostSale01 is IBifrostSale01, Context {
         // Get the portion of liquidity from the leftovers
         uint256 totalBNB = _raised.sub(devCut);
         uint256 liquidityBNB = totalBNB.mul(_liquidity).div(1e4);
+        uint256 actualLiquidity = _listingRate.mul(liquidityBNB).div(1e18);
 
         // Add liquidity
-        TransferHelper.safeApprove(_token, address(_pancakeswapV2Router), _liquidityAmount);
-        _pancakeswapV2Router.addLiquidityETH{value: liquidityBNB}(_token, _liquidityAmount, 0, 0, address(this), block.timestamp.add(300));
+        TransferHelper.safeApprove(_token, address(_pancakeswapV2Router), actualLiquidity);
+        _pancakeswapV2Router.addLiquidityETH{value: liquidityBNB}(_token, actualLiquidity, 0, 0, address(this), block.timestamp.add(300));
         _pancakeswapV2LiquidityPair = IPancakeFactory(_pancakeswapV2Router.factory()).getPair(_token, _pancakeswapV2Router.WETH());
 
+        TransferHelper.safeTransfer(_token, msg.sender, IERC20(_token).balanceOf(address(this)));
         TransferHelper.safeTransferETH(msg.sender, totalBNB.sub(liquidityBNB));
         _launched = true;
     }
