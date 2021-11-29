@@ -239,6 +239,18 @@ contract BifrostSale01 is IBifrostSale01, Context {
         return IERC20(_token).balanceOf(address(this)) >= _totalTokens;
     }
 
+    function userWhitelisted() external returns(bool) {
+        return _userWhitelisted(msg.sender);
+    }
+
+    function _userWhitelisted(address account) public returns(bool) {
+        if (_whitelist != address(0)) {
+            return Whitelist(_whitelist).isWhitelisted(account);
+        } else {
+            return false;
+        }
+    }
+
     function setWhitelist() external isRunner {
         require(_whitelist == address(0), "There is already a whitelist!");
         _whitelist = address(new Whitelist());
@@ -331,6 +343,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
      */
     function _deposit(address user, uint256 amount) internal {
         require(!_canceled, "Sale is canceled");
+        require(canStart(), "Token balance isn't topped up!");
         if (running()) {
             require(_raised.add(amount) <= _hardCap, "This amount would exceed the hard cap");
             require(_deposited[user].add(amount) <= _max, "Cannot contribute more than the max!");
@@ -415,5 +428,21 @@ contract BifrostSale01 is IBifrostSale01, Context {
 
     function canceled() external view returns(bool) {
         return _canceled;
+    }
+
+    /**
+     * @notice Withdraws BNB from the contract
+     */
+    function emergencyWithdrawBNB() payable external {
+        require(_owner == msg.sender, "Only owner");
+        payable(_owner).transfer(address(this).balance);
+    }
+
+    /**
+     * @notice Withdraws non-RAINBOW tokens that are stuck as to not interfere with the liquidity
+     */
+    function emergencyWithdrawTokens(address token) payable external {
+        require(_owner == msg.sender, "Only owner");
+        IERC20(address(token)).transfer(_owner, IERC20(token).balanceOf(address(this)));
     }
 }
