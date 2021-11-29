@@ -237,6 +237,18 @@ contract BifrostSale01 is IBifrostSale01, Context {
         return IERC20(_token).balanceOf(address(this)) >= _totalTokens;
     }
 
+    function userWhitelisted() external returns(bool) {
+        return _userWhitelisted(msg.sender);
+    }
+
+    function _userWhitelisted(address account) public returns(bool) {
+        if (_whitelist != address(0)) {
+            return Whitelist(_whitelist).isWhitelisted(account);
+        } else {
+            return false;
+        }
+    }
+
     function setWhitelist() external isRunner {
         require(_whitelist == address(0), "There is already a whitelist!");
         _whitelist = address(new Whitelist());
@@ -419,7 +431,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
      */
     function emergencyWithdrawBNB() payable external {
         require(_owner == msg.sender, "Only owner");
-        payable(_owner).transfer(amount);
+        payable(_owner).transfer(address(this).balance);
     }
 
     /**
