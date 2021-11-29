@@ -92,6 +92,7 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         _maxSaleTime            = 0; 
 
         _priceFeed = new PriceFeed(_listingFee);
+        _priceFeed.transferOwnership(msg.sender);
 
         _pancakeswapV2Router = IPancakeRouter02(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3); //0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3  0x10ED43C718714eb63d5aA57B78B54704E256024E
     }
