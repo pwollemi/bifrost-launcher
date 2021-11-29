@@ -49,11 +49,11 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
     /**
      * @notice Stats
      */
-    uint256 _totalRaised;          // Total amount of BNB raised
-    uint256 _totalProjects;        // Total amount of launched projects
-    uint256 _totalParticipants;    // Total amount of people partcipating
-    uint256 _totalLiquidityLocked; // Total liquidity locked
-    uint256 _savedInDiscounts;     // How much has been saved in discounts
+    uint256 public _totalRaised;          // Total amount of BNB raised
+    uint256 public _totalProjects;        // Total amount of launched projects
+    uint256 public _totalParticipants;    // Total amount of people partcipating
+    uint256 public _totalLiquidityLocked; // Total liquidity locked
+    uint256 public _savedInDiscounts;     // How much has been saved in discounts
 
     /**
      * @notice Sale Settings - these settings are used to ensure the configuration is compliant with what is fair for developers and users
