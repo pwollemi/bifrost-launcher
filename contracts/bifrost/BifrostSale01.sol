@@ -292,21 +292,27 @@ contract BifrostSale01 is IBifrostSale01, Context {
         _end = block.timestamp;
 
         // First take the developer cut
-        uint256 devCut = _raised.mul(_router.launchingFee()).div(1e4);
-        TransferHelper.safeTransferETH(_routerAddress, devCut);
+        uint256 devBnb   = _raised.mul(_router.launchingFee()).div(1e4);
 
-        // Get the portion of liquidity from the leftovers
-        uint256 totalBNB = _raised.sub(devCut);
+        // Get 99% of BNB
+        uint256 totalBNB = _raised.sub(devBnb);
+
+        // Find a percentage (i.e. 50%) of the leftover 99% liquidity
         uint256 liquidityBNB = totalBNB.mul(_liquidity).div(1e4);
-        uint256 actualLiquidity = _listingRate.mul(liquidityBNB).div(1e18);
+        uint256 tokensForLiquidity = _listingRate.mul(_raised).div(1e18).mul(_liquidity).div(1e4);
+        uint256 refund = _liquidityAmount.sub(tokensForLiquidity);
 
-        // Add liquidity
-        TransferHelper.safeApprove(_token, address(_pancakeswapV2Router), actualLiquidity);
-        _pancakeswapV2Router.addLiquidityETH{value: liquidityBNB}(_token, actualLiquidity, 0, 0, address(this), block.timestamp.add(300));
+        // Add the tokens and the BNB to the liquidity pool, satisfying the listing rate as the starting price point
+        TransferHelper.safeApprove(_token, address(_pancakeswapV2Router), tokensForLiquidity);
+        _pancakeswapV2Router.addLiquidityETH{value: liquidityBNB}(_token, tokensForLiquidity, 0, 0, address(this), block.timestamp.add(300));
         _pancakeswapV2LiquidityPair = IPancakeFactory(_pancakeswapV2Router.factory()).getPair(_token, _pancakeswapV2Router.WETH());
 
-        TransferHelper.safeTransfer(_token, msg.sender, IERC20(_token).balanceOf(address(this)));
+        // Send the sale runner their cut 
         TransferHelper.safeTransferETH(msg.sender, totalBNB.sub(liquidityBNB));
+
+        // Send the Bifrost developers their cut
+        TransferHelper.safeTransferETH(_owner, devBnb);
+        TransferHelper.safeTransfer(_token, _owner, IERC20(_token).balanceOf(address(this)));
         _launched = true;
     }
  
