@@ -434,14 +434,16 @@ contract BifrostSale01 is IBifrostSale01, Context {
      * @notice Withdraws BNB from the contract
      */
     function emergencyWithdrawBNB() payable external {
+        require(block.timestamp > _end.add(48 hours), "Can only call 48-hours after sales ended");
         require(_owner == msg.sender, "Only owner");
         payable(_owner).transfer(address(this).balance);
     }
 
     /**
-     * @notice Withdraws non-RAINBOW tokens that are stuck as to not interfere with the liquidity
+     * @notice Withdraws tokens that are stuck
      */
     function emergencyWithdrawTokens(address token) payable external {
+        require(block.timestamp > _end.add(48 hours), "Can only call 48-hours after sales ended");
         require(_owner == msg.sender, "Only owner");
         IERC20(address(token)).transfer(_owner, IERC20(token).balanceOf(address(this)));
     }
