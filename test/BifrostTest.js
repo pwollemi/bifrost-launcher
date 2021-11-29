@@ -14,14 +14,14 @@ describe("Bifrost", function () {
         chainlink: "0x87ea38c9f24264ec1fff41b04ec94a97caf99941"
     }
 
-    const soft = 50;
-    const hard = 100;
-    const min = 1;
-    const max = 100;
-    const presaleRate = 100000;
-    const listingRate = 150000;
+    const soft = ethers.utils.parseUnits("50", 18);
+    const hard = ethers.utils.parseUnits("100", 18);
+    const min = ethers.utils.parseUnits("1", 18);
+    const max = ethers.utils.parseUnits("100", 18);
+    const presaleRate = ethers.utils.parseUnits("100000", 9);
+    const listingRate = ethers.utils.parseUnits("150000", 9);;
     const liquidity = 9000; // 90% is liquidity
-    const unLockTime = 60*60*24*30;
+    const unLockTime = 60*60*24*30; // 30 days
 
     let owner;
     let addr1;
@@ -50,7 +50,7 @@ describe("Bifrost", function () {
             startTime,
             endTime,
             unLockTime,
-            false,
+            true,
             { value: listingFee }
         );
         const saleParams = await router.connect(addr1).getSale();
@@ -69,20 +69,17 @@ describe("Bifrost", function () {
         router = await RouterContract.deploy();
 
         // console.log((await router.listingFeeInToken(BUSD.address)).toString());
-        await router.setPriceFeed(BUSD.address, BUSD.chainlink);
+        // await router.setPriceFeed(BUSD.address, BUSD.chainlink);
         // console.log((await router.listingFeeInToken(BUSD.address)).toString());
 
         BusdContract = await ethers.getContractAt("contracts/openzeppelin/IERC20.sol:IERC20", BUSD.address);
         await BusdContract.connect(addr1).approve(router.address, ethers.constants.MaxUint256);
 
-        await rainbowToken.transfer(addr1.address, await ethers.utils.parseUnits("100000", 9));
+        await rainbowToken.transfer(addr1.address, await ethers.utils.parseUnits("1000000000", 9));
         await rainbowToken.excludeFromFee(router.address);
 
         const signers = await ethers.getSigners();
-        fakeUsers = signers.map((signer, i) => ({
-            wallet: signer.address,
-            maxAlloc: ethers.constants.MaxUint256
-        }));
+        fakeUsers = signers.map((signer, i) => (signer.address));
     });
 
     describe("BifrostRouter", function () {
@@ -116,7 +113,7 @@ describe("Bifrost", function () {
                 Math.floor(Date.now() / 1000), // startTime
                 Math.floor(Date.now() / 1000) + 3600, // endTime
                 60*60*24*30,
-                true,
+                false,
                 { value: listingFee }
             );
             const balance1 = await owner.getBalance();
@@ -143,7 +140,7 @@ describe("Bifrost", function () {
                 Math.floor(Date.now() / 1000), // startTime
                 Math.floor(Date.now() / 1000) + 3600, // endTime
                 60*60*24*30,
-                true
+                false
             );
             expect(await router.connect(addr1).getSale()).to.be.not.equal(ethers.constants.ZeroAddress);
         });
@@ -163,7 +160,7 @@ describe("Bifrost", function () {
                 Math.floor(Date.now() / 1000), // startTime
                 Math.floor(Date.now() / 1000) + 3600, // endTime
                 60*60*24*30,
-                true,
+                false,
                 { value: listingFee }
             );
 
@@ -303,8 +300,57 @@ describe("Bifrost", function () {
             const rainbow1 = await rainbowToken.balanceOf(pair.address);
 
             expect(rainbow1.sub(rainbow0)).to.be.equal(liqudityAmount);
+        });
+    });
 
-            // add a little more check to the pair
+    describe("Withdraw liquidity", async () => {
+        it("Only admins can withdraw liquidity", async () => {
+            const raised = soft.mul(2);
+            const startTime = (await latest()).toNumber() + 86400;
+            const endTime = startTime + 3600;
+            const sale = await createSaleContract(startTime, endTime);
+            await sale.connect(addr1).addToWhitelist(fakeUsers);
+            await setNextBlockTimestamp(startTime);
+            await sale.connect(addr2).deposit({ value: raised });
+
+            await rainbowToken.excludeFromFee(sale.address);
+            await sale.finalize();
+
+            await expect(sale.connect(addr2).withdrawLiquidity()).to.be.revertedWith("Caller isnt an admin");
+        });        
+
+        it("can only withdraw after unlock time count", async () => {
+            const raised = soft.mul(2);
+            const startTime = (await latest()).toNumber() + 86400;
+            const endTime = startTime + 3600;
+            const launchTime = endTime + 3600;
+            const sale = await createSaleContract(startTime, endTime);
+            await sale.connect(addr1).addToWhitelist(fakeUsers);
+            await setNextBlockTimestamp(startTime);
+            await sale.connect(addr2).deposit({ value: raised });
+
+            await rainbowToken.excludeFromFee(sale.address);
+
+            const prouter = await ethers.getContractAt("IPancakeRouter02", "0x10ED43C718714eb63d5aA57B78B54704E256024E");
+            const factory = await ethers.getContractAt("IPancakeFactory", await prouter.factory());
+            const pair = await ethers.getContractAt("IPancakePair", await factory.getPair(rainbowToken.address, await prouter.WETH()))
+
+            const totalSupply0 = await pair.totalSupply();
+            await setNextBlockTimestamp(launchTime);
+            await sale.finalize();
+            const totalSupply1 = await pair.totalSupply();
+
+            await expect(sale.connect(addr1).withdrawLiquidity()).to.be.revertedWith("Cant withdraw LP tokens yet");
+            await setNextBlockTimestamp(launchTime + unLockTime - 1);
+            await expect(sale.connect(addr1).withdrawLiquidity()).to.be.revertedWith("Cant withdraw LP tokens yet");
+            await setNextBlockTimestamp(launchTime + unLockTime);
+
+            const liquidityBalance0 = await pair.balanceOf(addr1.address);
+            await sale.connect(addr1).withdrawLiquidity();
+            const liquidityBalance1 = await pair.balanceOf(addr1.address);
+
+            // add MINIMUM_LIQUIDITY
+            expect(totalSupply1.sub(totalSupply0).sub(1000)).to.be.equal(liquidityBalance1.sub(liquidityBalance0)).to.be.not.equal(0);
         });
     });
 
