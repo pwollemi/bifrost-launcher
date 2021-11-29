@@ -33,6 +33,7 @@ describe("Bifrost", function () {
 
     let rainbowToken;
     let router;
+    let pricefeed;
     let fakeUsers;
 
     async function createSaleContract(startTime, endTime) {
@@ -68,9 +69,8 @@ describe("Bifrost", function () {
         rainbowToken = await RainbowContract.deploy();
         router = await RouterContract.deploy();
 
-        // console.log((await router.listingFeeInToken(BUSD.address)).toString());
-        // await router.setPriceFeed(BUSD.address, BUSD.chainlink);
-        // console.log((await router.listingFeeInToken(BUSD.address)).toString());
+        pricefeed = await ethers.getContractAt("PriceFeed", await router.priceFeed());
+        await pricefeed.setPriceFeed(BUSD.address, BUSD.chainlink);
 
         BusdContract = await ethers.getContractAt("contracts/openzeppelin/IERC20.sol:IERC20", BUSD.address);
         await BusdContract.connect(addr1).approve(router.address, ethers.constants.MaxUint256);
@@ -88,7 +88,7 @@ describe("Bifrost", function () {
 
             await router.setPartnerToken(BUSD.address, true);
 
-            const feeAmount = (await router.listingFeeInToken(BUSD.address)).mul(4).div(5); // discount 20% for BUSD
+            const feeAmount = (await pricefeed.listingFeeInToken(BUSD.address)).mul(4).div(5); // discount 20% for BUSD
             const balance0 = await BusdContract.balanceOf(owner.address);
             await router.connect(addr1).payFee(BUSD.address);
             const balance1 = await BusdContract.balanceOf(owner.address);
@@ -159,12 +159,13 @@ describe("Bifrost", function () {
                 liquidity,
                 Math.floor(Date.now() / 1000), // startTime
                 Math.floor(Date.now() / 1000) + 3600, // endTime
-                60*60*24*30,
+                unLockTime,
                 false,
                 { value: listingFee }
             );
 
-            const expectedTotalTokens = presaleRate * hard + listingRate * hard * liquidity / 10000;
+            const ONE = ethers.utils.parseUnits("1", 18);
+            const expectedTotalTokens = hard.div(ONE).mul(presaleRate).add(hard.div(ONE).mul(listingRate).mul(liquidity).div(10000));
             const saleParams = await router.connect(addr1).getSale();
             expect(await rainbowToken.balanceOf(saleParams[3])).to.be.equal(expectedTotalTokens);
         });
@@ -220,18 +221,18 @@ describe("Bifrost", function () {
             // deposit via direct transfer
             await addr1.sendTransaction({
                 to: sale.address,
-                value: ethers.utils.parseEther("0.1")
+                value: ethers.utils.parseEther("1")
             });
 
             // deposit via function
             await sale.connect(addr2).deposit({
-                value: ethers.utils.parseEther("0.2")
+                value: ethers.utils.parseEther("2")
             });
 
-            expect(await sale._raised()).to.be.equal(raisedBefore.add(ethers.utils.parseEther("0.3")));
+            expect(await sale._raised()).to.be.equal(raisedBefore.add(ethers.utils.parseEther("3")));
             expect(await ethers.provider.getBalance(router.address)).to.be.equal(routerBalance);
-            expect(await sale._deposited(addr1.address)).to.be.equal(ethers.utils.parseEther("0.1"));
-            expect(await sale._deposited(addr2.address)).to.be.equal(ethers.utils.parseEther("0.2"));
+            expect(await sale._deposited(addr1.address)).to.be.equal(ethers.utils.parseEther("1"));
+            expect(await sale._deposited(addr2.address)).to.be.equal(ethers.utils.parseEther("2"));
         });
 
         it("sale duration", async () => {
@@ -268,7 +269,7 @@ describe("Bifrost", function () {
             await setNextBlockTimestamp(startTime);
 
             // not successful if not enough
-            await sale.connect(addr2).deposit({ value: soft / 2 });
+            await sale.connect(addr2).deposit({ value: soft.div(2) });
             expect(await sale.successful()).to.be.equal(false);
 
             // successful when over soft cap
@@ -282,7 +283,7 @@ describe("Bifrost", function () {
             const sale = await createSaleContract(startTime, endTime);
             await sale.connect(addr1).addToWhitelist(fakeUsers);
 
-            const raised = soft * 2;
+            const raised = soft.mul(2);
             await setNextBlockTimestamp(startTime);
             await sale.connect(addr2).deposit({ value: raised });
 
@@ -317,7 +318,7 @@ describe("Bifrost", function () {
             await sale.finalize();
 
             await expect(sale.connect(addr2).withdrawLiquidity()).to.be.revertedWith("Caller isnt an admin");
-        });        
+        });
 
         it("can only withdraw after unlock time count", async () => {
             const raised = soft.mul(2);
