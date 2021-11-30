@@ -34,6 +34,7 @@ describe("Bifrost", function () {
     let rainbowToken;
     let router;
     let pricefeed;
+    let partnerTokens;
     let fakeUsers;
 
     async function createSaleContract(startTime, endTime) {
@@ -55,7 +56,7 @@ describe("Bifrost", function () {
             { value: listingFee }
         );
         const saleParams = await router.connect(addr1).getSale();
-        return await ethers.getContractAt("BifrostSale01", saleParams[3]);
+        return await ethers.getContractAt("BifrostSale01", saleParams[2]);
     }
 
     before(async function () {
@@ -72,6 +73,8 @@ describe("Bifrost", function () {
         pricefeed = await ethers.getContractAt("PriceFeed", await router.priceFeed());
         await pricefeed.setPriceFeed(BUSD.address, BUSD.chainlink);
 
+        partnerTokens = await ethers.getContractAt("PartnerTokens", await router.partnerTokens());
+
         BusdContract = await ethers.getContractAt("contracts/openzeppelin/IERC20.sol:IERC20", BUSD.address);
         await BusdContract.connect(addr1).approve(router.address, ethers.constants.MaxUint256);
 
@@ -84,9 +87,9 @@ describe("Bifrost", function () {
 
     describe("BifrostRouter", function () {
         it("payFee", async () => {
-            await expect(router.connect(addr1).payFee(BUSD.address)).to.be.revertedWith("Token not a partner token!");
+            await expect(router.connect(addr1).payFee(BUSD.address)).to.be.revertedWith("Token not a partner!");
 
-            await router.setPartnerToken(BUSD.address, true);
+            await partnerTokens.setPartnerToken(BUSD.address, 2000);
 
             const feeAmount = (await pricefeed.listingFeeInToken(BUSD.address)).mul(4).div(5); // discount 20% for BUSD
             const balance0 = await BusdContract.balanceOf(owner.address);
@@ -110,8 +113,8 @@ describe("Bifrost", function () {
                 presaleRate,
                 listingRate,
                 liquidity,
-                Math.floor(Date.now() / 1000), // startTime
-                Math.floor(Date.now() / 1000) + 3600, // endTime
+                Math.floor(Date.now() / 1000) + 86400 * 10, // startTime
+                Math.floor(Date.now() / 1000) + + 86400 * 10 + 3600, // endTime
                 60*60*24*30,
                 false,
                 { value: listingFee }
@@ -124,7 +127,7 @@ describe("Bifrost", function () {
         });
 
         it("create sale: paid fee", async () => {
-            await router.setPartnerToken(BUSD.address, true);
+            await partnerTokens.setPartnerToken(BUSD.address, 2000);
             await router.connect(addr1).payFee(BUSD.address);
 
             await rainbowToken.connect(addr1).approve(router.address, ethers.constants.MaxUint256);
@@ -137,8 +140,8 @@ describe("Bifrost", function () {
                 presaleRate,
                 listingRate,
                 liquidity,
-                Math.floor(Date.now() / 1000), // startTime
-                Math.floor(Date.now() / 1000) + 3600, // endTime
+                Math.floor(Date.now() / 1000) + 86400 * 10, // startTime
+                Math.floor(Date.now() / 1000) + + 86400 * 10 + 3600, // endTime
                 60*60*24*30,
                 false
             );
@@ -157,8 +160,8 @@ describe("Bifrost", function () {
                 presaleRate,
                 listingRate,
                 liquidity,
-                Math.floor(Date.now() / 1000), // startTime
-                Math.floor(Date.now() / 1000) + 3600, // endTime
+                Math.floor(Date.now() / 1000) + 86400 * 10, // startTime
+                Math.floor(Date.now() / 1000) + + 86400 * 10 + 3600, // endTime
                 unLockTime,
                 false,
                 { value: listingFee }
@@ -167,7 +170,7 @@ describe("Bifrost", function () {
             const ONE = ethers.utils.parseUnits("1", 18);
             const expectedTotalTokens = hard.div(ONE).mul(presaleRate).add(hard.div(ONE).mul(listingRate).mul(liquidity).div(10000));
             const saleParams = await router.connect(addr1).getSale();
-            expect(await rainbowToken.balanceOf(saleParams[3])).to.be.equal(expectedTotalTokens);
+            expect(await rainbowToken.balanceOf(saleParams[2])).to.be.equal(expectedTotalTokens);
         });
     });
 
@@ -189,22 +192,16 @@ describe("Bifrost", function () {
             const sale = await createSaleContract(startTime, endTime);
             await sale.connect(addr1).addToWhitelist(fakeUsers);
             
-            const raisedBefore = await sale._raised();
-            const routerBalance = await ethers.provider.getBalance(router.address);
-
             // deposit via direct transfer
-            await addr1.sendTransaction({
+            await expect(addr1.sendTransaction({
                 to: sale.address,
                 value: ethers.utils.parseEther("0.1")
-            });
+            })).to.be.revertedWith("Sale isn't running!");
 
             // deposit via function fails
             await expect(sale.connect(addr2).deposit({
                 value: ethers.utils.parseEther("0.2")
-            })).to.be.revertedWith("Sale isnt running");
-
-            expect(await sale._raised()).to.be.equal(raisedBefore);
-            expect(await ethers.provider.getBalance(router.address)).to.be.equal(routerBalance.add(ethers.utils.parseEther("0.1")));
+            })).to.be.revertedWith("Sale isn't running!");
         });
 
         it("deposit: all go to _raised after start", async () => {

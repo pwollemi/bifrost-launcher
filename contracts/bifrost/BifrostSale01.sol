@@ -71,7 +71,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
      * @notice Checks if the sale is running
      */
     modifier isRunning {
-        require(running(), "Sale isnt running");
+        require(running(), "Sale isn't running!");
         _;
     }
 
@@ -319,20 +319,20 @@ contract BifrostSale01 is IBifrostSale01, Context {
         uint256 totalBNB = _raised.sub(devBnb);
 
         // Find a percentage (i.e. 50%) of the leftover 99% liquidity
-        // uint256 liquidityBNB = totalBNB.mul(_liquidity).div(1e4);
-        // uint256 tokensForLiquidity = _listingRate.mul(_raised).div(1e18).mul(_liquidity).div(1e4);
-        // uint256 refund = _liquidityAmount.sub(tokensForLiquidity);
+        uint256 liquidityBNB = totalBNB.mul(_liquidity).div(1e4);
+        uint256 tokensForLiquidity = _listingRate.mul(_raised).div(1e18).mul(_liquidity).div(1e4);
+        uint256 refund = _liquidityAmount.sub(tokensForLiquidity);
 
         // Add the tokens and the BNB to the liquidity pool, satisfying the listing rate as the starting price point
-        // TransferHelper.safeApprove(_token, address(_pancakeswapV2Router), tokensForLiquidity);
-        // _pancakeswapV2Router.addLiquidityETH{value: liquidityBNB}(_token, tokensForLiquidity, 0, 0, address(this), block.timestamp.add(300));
-        // _pancakeswapV2LiquidityPair = IPancakeFactory(_pancakeswapV2Router.factory()).getPair(_token, _pancakeswapV2Router.WETH());
+        TransferHelper.safeApprove(_token, address(_pancakeswapV2Router), tokensForLiquidity);
+        _pancakeswapV2Router.addLiquidityETH{value: liquidityBNB}(_token, tokensForLiquidity, 0, 0, address(this), block.timestamp.add(300));
+        _pancakeswapV2LiquidityPair = IPancakeFactory(_pancakeswapV2Router.factory()).getPair(_token, _pancakeswapV2Router.WETH());
 
         // Send the sale runner their cut 
-        //TransferHelper.safeTransferETH(msg.sender, totalBNB.sub(liquidityBNB));
+        TransferHelper.safeTransferETH(msg.sender, totalBNB.sub(liquidityBNB));
 
         // Send the Bifrost developers their cut
-        //TransferHelper.safeTransfer(_token, _owner, IERC20(_token).balanceOf(address(this)));
+        TransferHelper.safeTransfer(_token, _owner, IERC20(_token).balanceOf(address(this)));
         _launched = true;
     }
  
