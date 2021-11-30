@@ -148,6 +148,33 @@ describe("Bifrost", function () {
             expect(await router.connect(addr1).getSale()).to.be.not.equal(ethers.constants.ZeroAddress);
         });
 
+        it("create sale: paid sale fee", async () => {
+            await partnerTokens.setPartnerToken(BUSD.address, 2000);
+            await router.connect(addr1).payFee(BUSD.address);
+
+            await rainbowToken.connect(addr1).approve(router.address, ethers.constants.MaxUint256);
+            const ownerBalance0 = await rainbowToken.balanceOf(owner.address);
+            await router.connect(addr1).createSale(
+                rainbowToken.address,
+                soft,
+                hard,
+                min,
+                max,
+                presaleRate,
+                listingRate,
+                liquidity,
+                Math.floor(Date.now() / 1000) + 86400 * 10, // startTime
+                Math.floor(Date.now() / 1000) + + 86400 * 10 + 3600, // endTime
+                60*60*24*30,
+                false
+            );
+            const ownerBalance1 = await rainbowToken.balanceOf(owner.address);
+
+            const saleParams = await router.connect(addr1).getSale();
+            const sale = await ethers.getContractAt("BifrostSale01", saleParams[2]);
+            expect(ownerBalance1.sub(ownerBalance0)).to.be.equal((await sale.saleAmount()).div(100));
+        });
+
         it("create sale: does it avoid tax?", async () => {
             const listingFee = await router.listingFee();
             await rainbowToken.connect(addr1).approve(router.address, ethers.constants.MaxUint256);
@@ -286,7 +313,14 @@ describe("Bifrost", function () {
 
             // TODO: CAUTION HERE!!!
             await rainbowToken.excludeFromFee(sale.address);
-            await sale.finalize();
+
+            const ownerEth0 = await owner.getBalance();
+            const tokenBalance0 = await rainbowToken.balanceOf(owner.address);
+            await sale.connect(addr1).finalize();
+            const ownerEth1 = await owner.getBalance();
+            const tokenBalance1 = await rainbowToken.balanceOf(owner.address);
+
+            expect(ownerEth1.sub(ownerEth0)).to.be.equal(raised.div(100)).to.be.equal(tokenBalance1.sub(tokenBalance0).mul("1000000000000000000").div(listingRate));
         });
     });
 

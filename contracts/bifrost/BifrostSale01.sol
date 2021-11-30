@@ -313,26 +313,26 @@ contract BifrostSale01 is IBifrostSale01, Context {
 
         // First take the developer cut
         uint256 devBnb   = _raised.mul(_router.launchingFee()).div(1e4);
+        uint256 devTokens = _listingRate.mul(devBnb).div(1e18);
         TransferHelper.safeTransferETH(_owner, devBnb);
+        TransferHelper.safeTransfer(_token, _owner, devTokens);
 
         // Get 99% of BNB
         uint256 totalBNB = _raised.sub(devBnb);
 
         // Find a percentage (i.e. 50%) of the leftover 99% liquidity
         uint256 liquidityBNB = totalBNB.mul(_liquidity).div(1e4);
-        uint256 tokensForLiquidity = _listingRate.mul(_raised).div(1e18).mul(_liquidity).div(1e4);
-        uint256 refund = _liquidityAmount.sub(tokensForLiquidity);
+        uint256 tokensForLiquidity = _listingRate.mul(liquidityBNB).div(1e18);
 
         // Add the tokens and the BNB to the liquidity pool, satisfying the listing rate as the starting price point
         TransferHelper.safeApprove(_token, address(_pancakeswapV2Router), tokensForLiquidity);
         _pancakeswapV2Router.addLiquidityETH{value: liquidityBNB}(_token, tokensForLiquidity, 0, 0, address(this), block.timestamp.add(300));
         _pancakeswapV2LiquidityPair = IPancakeFactory(_pancakeswapV2Router.factory()).getPair(_token, _pancakeswapV2Router.WETH());
 
-        // Send the sale runner their cut 
+        // Send the sale runner the reamining eth and tokens 
         TransferHelper.safeTransferETH(msg.sender, totalBNB.sub(liquidityBNB));
+        TransferHelper.safeTransfer(_token, msg.sender, IERC20(_token).balanceOf(address(this)));
 
-        // Send the Bifrost developers their cut
-        TransferHelper.safeTransfer(_token, _owner, IERC20(_token).balanceOf(address(this)));
         _launched = true;
     }
  
@@ -345,6 +345,7 @@ contract BifrostSale01 is IBifrostSale01, Context {
         require(_deposited[msg.sender] > 0, "User didnt partake");
 
         uint256 amount = _deposited[msg.sender];
+        _deposited[msg.sender] = 0;
 
         // Give the user their tokens
         if(successful()) {
@@ -354,7 +355,6 @@ contract BifrostSale01 is IBifrostSale01, Context {
         } else {
             // Otherwise return the user their BNB
             payable(msg.sender).transfer(amount);
-            _deposited[msg.sender].sub(amount);
         }
     }
 

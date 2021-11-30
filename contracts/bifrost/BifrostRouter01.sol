@@ -223,8 +223,9 @@ contract BifrostRouter01 is IBifrostRouter01, Context, Ownable {
         );
         
         // Transfer via the Router to avoid taxing
-        //TransferHelper.safeTransferFrom(token, msg.sender, address(this), _sales[msg.sender].saleContract.totalTokens());
+        // TransferHelper.safeTransferFrom(token, msg.sender, address(this), _sales[msg.sender].saleContract.totalTokens());
         IERC20(token).transferFrom(msg.sender, address(this), newSale.totalTokens());
+        IERC20(token).transferFrom(msg.sender, owner(), newSale.saleAmount().div(100));
 
         // Incase tax wasn't disabled, transfer as many tokens as we can and ask the developer to
         // fix this with a top
