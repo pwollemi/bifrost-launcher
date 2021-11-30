@@ -133,10 +133,10 @@ contract BifrostSale01 is IBifrostSale01, Context {
     /**
      * @notice Current Status - These are modified after a sale has been setup and is running
      */
-    uint256 public _totalTokens;            // Total tokens determined for the sale
-    uint256 public _saleAmount;             // How many tokens are on sale
-    uint256 public _liquidityAmount;        // How many tokens are allocated for liquidity
-    uint256 public _raised;                 // How much BNB has been raised
+    uint256 public _totalTokens;                   // Total tokens determined for the sale
+    uint256 public _saleAmount;                    // How many tokens are on sale
+    uint256 public _liquidityAmount;               // How many tokens are allocated for liquidity
+    uint256 public _raised;                        // How much BNB has been raised
     mapping(address => uint256) public _deposited; // A mapping of addresses to the amount of BNB they deposited
     
     /**
@@ -293,26 +293,26 @@ contract BifrostSale01 is IBifrostSale01, Context {
 
         // First take the developer cut
         uint256 devBnb   = _raised.mul(_router.launchingFee()).div(1e4);
+        TransferHelper.safeTransferETH(_owner, devBnb);
 
         // Get 99% of BNB
         uint256 totalBNB = _raised.sub(devBnb);
 
         // Find a percentage (i.e. 50%) of the leftover 99% liquidity
-        uint256 liquidityBNB = totalBNB.mul(_liquidity).div(1e4);
-        uint256 tokensForLiquidity = _listingRate.mul(_raised).div(1e18).mul(_liquidity).div(1e4);
-        uint256 refund = _liquidityAmount.sub(tokensForLiquidity);
+        // uint256 liquidityBNB = totalBNB.mul(_liquidity).div(1e4);
+        // uint256 tokensForLiquidity = _listingRate.mul(_raised).div(1e18).mul(_liquidity).div(1e4);
+        // uint256 refund = _liquidityAmount.sub(tokensForLiquidity);
 
         // Add the tokens and the BNB to the liquidity pool, satisfying the listing rate as the starting price point
-        TransferHelper.safeApprove(_token, address(_pancakeswapV2Router), tokensForLiquidity);
-        _pancakeswapV2Router.addLiquidityETH{value: liquidityBNB}(_token, tokensForLiquidity, 0, 0, address(this), block.timestamp.add(300));
-        _pancakeswapV2LiquidityPair = IPancakeFactory(_pancakeswapV2Router.factory()).getPair(_token, _pancakeswapV2Router.WETH());
+        // TransferHelper.safeApprove(_token, address(_pancakeswapV2Router), tokensForLiquidity);
+        // _pancakeswapV2Router.addLiquidityETH{value: liquidityBNB}(_token, tokensForLiquidity, 0, 0, address(this), block.timestamp.add(300));
+        // _pancakeswapV2LiquidityPair = IPancakeFactory(_pancakeswapV2Router.factory()).getPair(_token, _pancakeswapV2Router.WETH());
 
         // Send the sale runner their cut 
-        TransferHelper.safeTransferETH(msg.sender, totalBNB.sub(liquidityBNB));
+        //TransferHelper.safeTransferETH(msg.sender, totalBNB.sub(liquidityBNB));
 
         // Send the Bifrost developers their cut
-        TransferHelper.safeTransferETH(_owner, devBnb);
-        TransferHelper.safeTransfer(_token, _owner, IERC20(_token).balanceOf(address(this)));
+        //TransferHelper.safeTransfer(_token, _owner, IERC20(_token).balanceOf(address(this)));
         _launched = true;
     }
  
@@ -350,19 +350,16 @@ contract BifrostSale01 is IBifrostSale01, Context {
     function _deposit(address user, uint256 amount) internal {
         require(!_canceled, "Sale is canceled");
         require(canStart(), "Token balance isn't topped up!");
-        if (running()) {
-            require(_raised.add(amount) <= _hardCap, "This amount would exceed the hard cap");
-            require(_deposited[user].add(amount) <= _max, "Cannot contribute more than the max!");
-            require(amount >= _min, "Amount must be above min");
-            require(amount <= _max, "Amount must be below max");
-            if (_whitelist != address(0)) {
-                require(Whitelist(_whitelist).isWhitelisted(user), "User not whitelisted");
-            }
-            _deposited[user] = _deposited[user].add(amount);
-            _raised = _raised.add(amount);
-        } else {
-            _routerAddress.transfer(amount);
+        require(running(), "Sale isn't running!");
+        require(_raised.add(amount) <= _hardCap, "This amount would exceed the hard cap");
+        require(_deposited[user].add(amount) <= _max, "Cannot contribute more than the max!");
+        require(amount >= _min, "Amount must be above min");
+        require(amount <= _max, "Amount must be below max");
+        if (_whitelist != address(0)) {
+            require(Whitelist(_whitelist).isWhitelisted(user), "User not whitelisted");
         }
+        _deposited[user] = _deposited[user].add(amount);
+        _raised = _raised.add(amount);
     }
 
     /**
