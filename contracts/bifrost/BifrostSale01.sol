@@ -252,11 +252,13 @@ contract BifrostSale01 is IBifrostSale01, Context {
     }
 
     function setWhitelist() external isRunner {
+        require(block.timestamp < _start, "Sale started");
         require(_whitelist == address(0), "There is already a whitelist!");
         _whitelist = address(new Whitelist());
     }
 
     function removeWhitelist() external isRunner {
+        require(block.timestamp < _start, "Sale started");
         require(_whitelist != address(0), "There isn't a whitelist set");
         _whitelist = address(0);
     }
@@ -282,6 +284,24 @@ contract BifrostSale01 is IBifrostSale01, Context {
      */
     function deposit() override external payable isRunning {
         _deposit(msg.sender, msg.value);
+    }
+
+    /**
+     * @notice 
+     */
+    function _deposit(address user, uint256 amount) internal {
+        require(!_canceled, "Sale is canceled");
+        require(running(), "Sale isn't running!");
+        require(canStart(), "Token balance isn't topped up!");
+        require(_raised.add(amount) <= _hardCap, "Cant exceed hard cap");
+        require(_deposited[user].add(amount) <= _max, "Cant deposit more than the max");
+        require(amount >= _min, "Amount must be above min");
+        require(amount <= _max, "Amount must be below max");
+        if (_whitelist != address(0)) {
+            require(Whitelist(_whitelist).isWhitelisted(user), "User not whitelisted");
+        }
+        _deposited[user] = _deposited[user].add(amount);
+        _raised = _raised.add(amount);
     }
 
     /**
@@ -321,13 +341,14 @@ contract BifrostSale01 is IBifrostSale01, Context {
      * @dev This entitles msg.sender to (amount * _presaleRate) after a successful sale
      */
     function withdraw() override external {
-        require(ended(), "Sale hasn't ended");
+        require(ended(), "Sale hasnt ended");
         require(_deposited[msg.sender] > 0, "User didnt partake");
 
         uint256 amount = _deposited[msg.sender];
 
         // Give the user their tokens
         if(successful()) {
+            require(_launched, "Sale hasnt finalized");
             uint256 tokens = amount.mul(_presaleRate).div(1e18);
             TransferHelper.safeTransfer(_token, msg.sender, tokens);
         } else {
@@ -344,23 +365,6 @@ contract BifrostSale01 is IBifrostSale01, Context {
         require(_routerAddress == msg.sender || _owner == msg.sender, "User not Bifrost");
     }
 
-    /**
-     * @notice 
-     */
-    function _deposit(address user, uint256 amount) internal {
-        require(!_canceled, "Sale is canceled");
-        require(canStart(), "Token balance isn't topped up!");
-        require(running(), "Sale isn't running!");
-        require(_raised.add(amount) <= _hardCap, "This amount would exceed the hard cap");
-        require(_deposited[user].add(amount) <= _max, "Cannot contribute more than the max!");
-        require(amount >= _min, "Amount must be above min");
-        require(amount <= _max, "Amount must be below max");
-        if (_whitelist != address(0)) {
-            require(Whitelist(_whitelist).isWhitelisted(user), "User not whitelisted");
-        }
-        _deposited[user] = _deposited[user].add(amount);
-        _raised = _raised.add(amount);
-    }
 
     /**
      * @notice Returns true if the admin is able to withdraw the LP tokens
