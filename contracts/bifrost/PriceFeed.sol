@@ -56,33 +56,10 @@ contract PriceFeed is Context, Ownable {
      * @notice Sets a token price feed
      */
     function listingFeeInToken(address token) public view returns (uint256) {
-        uint256 bnbAmountOfOneToken = type(uint256).max;
-        uint256 decimals = 18; // price decimals
-
-        if (_aggregators[token] != address(0)) { // if chainlink aggregator is set
-            AggregatorV3Interface aggregator = AggregatorV3Interface(_aggregators[token]);
-            (, int256 answer, , , ) = aggregator.latestRoundData();
-            require(answer > 0, "Invalid price feed");
-            decimals = aggregator.decimals();
-            bnbAmountOfOneToken = uint256(answer);
-        } else { // use pancake pair
-            IPancakePair pair = IPancakePair(IPancakeFactory(_pancakeswapV2Router.factory()).getPair(token, _pancakeswapV2Router.WETH()));
-            address token0 = pair.token0();
-            address token1 = pair.token1();
-            uint256 decimals0 = IERC20(token0).decimals();
-            uint256 decimals1 = IERC20(token1).decimals();
-
-            (uint112 reserve0, uint112 reserve1, ) = pair.getReserves();
-            // avoid mul and div by 0
-            if (reserve0 > 0 && reserve1 > 0) {
-                if (token == token0) {
-                    bnbAmountOfOneToken = (10**(decimals + decimals0 - decimals1) * uint256(reserve1)) / uint256(reserve0);
-                } else {
-                    bnbAmountOfOneToken = (10**(decimals + decimals1 - decimals0) * uint256(reserve0)) / uint256(reserve1);
-                }
-            }
-        }
-        return _currentListingFee * (10 ** decimals) / uint256(bnbAmountOfOneToken);
+        address[] memory path = new address[](2);
+        path[0] = token;
+        path[1] = _pancakeswapV2Router.WETH();
+        uint256[] memory amounts = _pancakeswapV2Router.getAmountsIn(_currentListingFee, path);
+        return amounts[0];
     }
-
 }
