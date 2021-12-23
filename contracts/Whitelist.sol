@@ -2,10 +2,12 @@
 pragma solidity ^0.8.4;
 pragma abicoder v2;
 
-import 'contracts/openzeppelin/Ownable.sol';
-import "../libraries/AddressPagination.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-contract Whitelist is Ownable {
+import "contracts/libraries/AddressPagination.sol";
+
+contract Whitelist is OwnableUpgradeable {
     using AddressPagination for address[];
 
     /// @notice Maximum input array length(used in `addToWhitelist`, `removeFromWhitelist`)
@@ -24,6 +26,10 @@ contract Whitelist is Ownable {
 
     /// @notice An event emitted when a user is added or removed. True: Added, False: Removed
     event AddedOrRemoved(bool added, address indexed user, uint256 timestamp);
+
+    function initialize() external initializer {
+        __Ownable_init();
+    }
 
     /**
      * @notice Return the number of users

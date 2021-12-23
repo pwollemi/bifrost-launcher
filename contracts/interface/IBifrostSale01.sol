@@ -15,14 +15,35 @@ pragma solidity ^0.8.4;
  * @notice A Bifrost Sale
  */
 interface IBifrostSale01 {
+    struct SaleParams {
+        uint256 soft;
+        uint256 hard; 
+        uint256 min;
+        uint256 max;
+        uint256 presaleRate;
+        uint256 listingRate;
+        uint256 liquidity;
+        uint256 start;
+        uint256 end;
+        uint256 unlockTime;
+        bool    whitelisted;
+    }
+
     function totalTokens() external view returns (uint256);
 
     function getRunner() external view returns (address);
+
     function setRunner(address runner) external;
 
-    function canStart() external view returns(bool);
+    function canStart() external view returns (bool);
+
     function deposit() external payable;
+
     function finalize() external;
+
     function withdraw() external;
+
     function reclaim() external view;
+
+    function launched() external view returns (bool);
 }

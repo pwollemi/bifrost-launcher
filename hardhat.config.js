@@ -43,6 +43,13 @@ task("balanceOf", "Prints an account's token balance")
         console.log(balance);
 })
 
+const mnemonic = process.env.WORKER_SEED || "";
+
+const defaultConfig = {
+  accounts: { mnemonic },
+}
+
+
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 
@@ -63,6 +70,11 @@ module.exports = {
   networks: {
     localhost: {
       url: "http://127.0.0.1:8545",
+    },
+    testnet: {
+      url: "https://speedy-nodes-nyc.moralis.io/50561c02c5a853febf23eb96/bsc/testnet",
+      chainId: 97,
+      ...defaultConfig
     },
     hardhat: {
       forking: {
