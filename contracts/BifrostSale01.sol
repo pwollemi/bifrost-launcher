@@ -23,6 +23,8 @@ import "contracts/interface/uniswap/IUniswapV2Factory.sol";
 import "contracts/interface/IBifrostRouter01.sol";
 import "contracts/interface/IBifrostSale01.sol";
 import "contracts/interface/IBifrostSettings.sol";
+import "contracts/interface/IERC20Extended.sol";
+
 
 import "contracts/libraries/TransferHelper.sol";
 
@@ -34,6 +36,8 @@ import "contracts/Whitelist.sol";
 contract BifrostSale01 is Initializable, ContextUpgradeable {
     using SafeMathUpgradeable for uint256;
     using AddressUpgradeable for address;
+
+    uint256 public constant ACCURACY = 1e10;
 
     /// @notice The BifrostRouter owner
     address public owner;
@@ -56,13 +60,14 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
     /**
      * @notice Configuration
      */
-    address   public token;         // The token that the sale is selling
+    address   public tokenA;        // The token that the sale is selling
+    address   public tokenB;        // The token that the pay to buy sale tokens
     uint256   public softCap;       // The soft cap of BNB or tokenB 
     uint256   public hardCap;       // The hard cap of BNB or tokenB
     uint256   public min;           // The minimum amount of contributed BNB or tokenB
     uint256   public max;           // The maximum amount of contributed BNB or tokenB
-    uint256   public presaleRate;   // How many tokenA is given per BNB or tokenB
-    uint256   public listingRate;   // How many tokenA is worth 1 BNB or 1 tokenB when we list
+    uint256   public presaleRate;   // How many tokenA is given per BNB or tokenB: no decimal consideration e.g. 1e9(= ACCURACY / 10) means 1 tokenB = 0.1 tokenA,
+    uint256   public listingRate;   // How many tokenA is worth 1 BNB or 1 tokenB when we list: no decimal consideration
     uint256   public liquidity;     // What perecentage of raised funds will be allocated for liquidity (100 = 1% - i.e. out of 10,000)
     uint256   public start;         // The start date in UNIX seconds of the presale
     uint256   public end;           // The end date in UNIX seconds of the presale
@@ -142,7 +147,8 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         address _bifrostRouter, 
         address _owner, 
         address _runner, 
-        address _token,
+        address _tokenA,
+        address _tokenB,
         address _exchangeRouter,
         address _whitelistImpl,
         uint256 _unlockTime
@@ -153,10 +159,11 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         bifrostRouter = IBifrostRouter01(_bifrostRouter);
         owner = _owner;
         runner = _runner;
-        token = _token;
+        tokenA = _tokenA;
+        tokenB = _tokenB;
 
         // Let the bifrostRouter control payments!
-        TransferHelper.safeApprove(_token, _bifrostRouter, type(uint256).max);
+        TransferHelper.safeApprove(_tokenA, _bifrostRouter, type(uint256).max);
 
         exchangeRouter = IUniswapV2Router02(_exchangeRouter);
         unlockTime = _unlockTime;
@@ -176,9 +183,8 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         start = params.start;
         end = params.end;
 
-        // 1e18 is BNB decimals, we will need update to token's decimal later
-        saleAmount      = presaleRate.mul(hardCap).div(1e18);
-        liquidityAmount = listingRate.mul(hardCap).div(1e18).mul(liquidity).div(1e4);
+        saleAmount = getTokenAAmount(hardCap, presaleRate);
+        liquidityAmount = getTokenAAmount(hardCap, listingRate).mul(liquidity).div(1e4);
         totalTokens = saleAmount.add(liquidityAmount);
 
         if(params.whitelisted) {
@@ -190,6 +196,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
      * @notice If the presale isn't running will direct any received payments straight to the bifrostRouter
      */
     receive() external payable {
+        require(tokenB == address(0));
         _deposit(_msgSender(), msg.value);
     }
 
@@ -262,8 +269,13 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
      * @notice For users to deposit into the sale
      * @dev This entitles _msgSender() to (amount * presaleRate) after a successful sale
      */
-    function deposit() external payable isRunning {
-        _deposit(_msgSender(), msg.value);
+    function deposit(uint256 amount) external payable isRunning {
+        if (tokenB == address(0)) {
+            _deposit(_msgSender(), msg.value);
+        } else {
+            TransferHelper.safeTransferFrom(tokenB, msg.sender, address(this), amount);
+            _deposit(_msgSender(), amount);
+        }
     }
 
     /**
@@ -292,26 +304,41 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         end = block.timestamp;
 
         // First take the developer cut
-        uint256 devBnb   = raised.mul(bifrostRouter.launchingFee()).div(1e4);
-        uint256 devTokens = listingRate.mul(devBnb).div(1e18);
-        TransferHelper.safeTransferETH(owner, devBnb);
-        TransferHelper.safeTransfer(token, owner, devTokens);
+        uint256 devTokenB   = raised.mul(bifrostRouter.launchingFee()).div(1e4);
+        uint256 devTokenA = getTokenAAmount(devTokenB, listingRate);
+        if (tokenB == address(0)) {
+            TransferHelper.safeTransferETH(owner, devTokenB);
+        } else {
+            TransferHelper.safeTransfer(tokenB, owner, devTokenB);
+        }
+        TransferHelper.safeTransfer(tokenA, owner, devTokenA);
 
-        // Get 99% of BNB
-        uint256 totalBNB = raised.sub(devBnb);
+        // Get 99% of tokenB
+        uint256 totalTokenB = raised.sub(devTokenB);
 
         // Find a percentage (i.e. 50%) of the leftover 99% liquidity
-        uint256 liquidityBNB = totalBNB.mul(liquidity).div(1e4);
-        uint256 tokensForLiquidity = listingRate.mul(liquidityBNB).div(1e18);
+        uint256 liquidityTokenB = totalTokenB.mul(liquidity).div(1e4);
+        uint256 tokenAForLiquidity = getTokenAAmount(liquidityTokenB, listingRate);
 
         // Add the tokens and the BNB to the liquidity pool, satisfying the listing rate as the starting price point
-        TransferHelper.safeApprove(token, address(exchangeRouter), tokensForLiquidity);
-        exchangeRouter.addLiquidityETH{value: liquidityBNB}(token, tokensForLiquidity, 0, 0, address(this), block.timestamp.add(300));
-        lpToken = IUniswapV2Factory(exchangeRouter.factory()).getPair(token, exchangeRouter.WETH());
+        TransferHelper.safeApprove(tokenA, address(exchangeRouter), tokenAForLiquidity);
 
-        // Send the sale runner the reamining eth and tokens 
-        TransferHelper.safeTransferETH(_msgSender(), totalBNB.sub(liquidityBNB));
-        TransferHelper.safeTransfer(token, _msgSender(), IERC20Upgradeable(token).balanceOf(address(this)));
+        if (tokenB == address(0)) {
+            exchangeRouter.addLiquidityETH{value: liquidityTokenB}(tokenA, tokenAForLiquidity, 0, 0, address(this), block.timestamp.add(300));
+            lpToken = IUniswapV2Factory(exchangeRouter.factory()).getPair(tokenA, exchangeRouter.WETH());
+        } else {
+            TransferHelper.safeApprove(tokenB, address(exchangeRouter), liquidityTokenB);
+            exchangeRouter.addLiquidity(tokenA, tokenB, tokenAForLiquidity, liquidityTokenB, 0, 0, address(this), block.timestamp.add(300));
+            lpToken = IUniswapV2Factory(exchangeRouter.factory()).getPair(tokenA, tokenB);
+        }
+
+        // Send the sale runner the reamining eth and tokens\
+        if (tokenB == address(0)) {
+            TransferHelper.safeTransferETH(_msgSender(), totalTokenB.sub(liquidityTokenB));
+        } else {
+            TransferHelper.safeTransfer(tokenB, _msgSender(), totalTokenB.sub(liquidityTokenB));
+        }
+        TransferHelper.safeTransfer(tokenA, _msgSender(), IERC20Upgradeable(tokenA).balanceOf(address(this)));
 
         launched = true;
     }
@@ -330,7 +357,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         if(successful()) {
             require(launched, "Sale hasnt finalized");
             uint256 tokens = amount.mul(presaleRate).div(1e18);
-            TransferHelper.safeTransfer(token, _msgSender(), tokens);
+            TransferHelper.safeTransfer(tokenA, _msgSender(), tokens);
         } else {
             // Otherwise return the user their BNB
             payable(_msgSender()).transfer(amount);
@@ -390,7 +417,27 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
     }
 
     function canStart() public view returns(bool) {
-        return IERC20Upgradeable(token).balanceOf(address(this)) >= totalTokens;
+        return IERC20Upgradeable(tokenA).balanceOf(address(this)) >= totalTokens;
+    }
+
+    function getDecimals(address token) internal view returns (uint256) {
+        return token == address(0) ? 18 : IERC20Extended(token).decimals();
+    }
+
+    function getTokenAAmount(uint256 tokenBAmount, uint256 rateOfTokenAInTokenB) internal view returns (uint256) {
+        return tokenBAmount
+            .mul(rateOfTokenAInTokenB)
+            .mul(10**getDecimals(tokenA))
+            .div(ACCURACY)
+            .div(10**getDecimals(tokenB));
+    }
+
+    function getTokenBAmount(uint256 tokenAAmount, uint256 rateOfTokenAInTokenB) internal view returns (uint256) {
+        return tokenAAmount
+            .mul(ACCURACY)
+            .mul(10**getDecimals(tokenB))
+            .div(rateOfTokenAInTokenB)
+            .div(10**getDecimals(tokenA));
     }
 }
 

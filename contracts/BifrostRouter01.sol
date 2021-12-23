@@ -104,6 +104,7 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
      */
     function createSale(
         address token,
+        address fundToken,
         IBifrostSale01.SaleParams memory saleParams
     ) external payable {
         // Ensure the runner hasn't run a sale before
@@ -126,6 +127,7 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
             owner(),
             _msgSender(),
             token,
+            fundToken,
             bifrostSettings.exchangeRouter(),
             bifrostSettings.whitelistImpl(),
             saleParams.unlockTime
