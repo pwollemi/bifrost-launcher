@@ -297,6 +297,27 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         raised = raised.add(amount);
     }
 
+
+    /**
+     * @notice 
+     */
+    function withdrawDeposit(uint256 amount) external {
+        require(!canceled, "Sale is canceled");
+        require(running(), "Sale isn't running!");
+        require(canStart(), "Token balance isn't topped up!");
+
+        _deposited[msg.sender] = _deposited[msg.sender].sub(amount);
+        raised = raised.sub(amount);
+
+        if (tokenB == address(0)) {
+            payable(msg.sender).transfer(amount.mul(8).div(10));
+            payable(owner).transfer(amount.mul(2).div(10));
+        } else {
+            IERC20Upgradeable(tokenB).transfer(msg.sender, amount.mul(8).div(10));
+            IERC20Upgradeable(tokenB).transfer(owner, amount.mul(2).div(10));
+        }
+    }
+
     /**
      * @notice Finishes the sale, and if successful launches to PancakeSwap
      */
