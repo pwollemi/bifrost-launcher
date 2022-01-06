@@ -175,6 +175,13 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
     }
 
     /**
+     * @notice Returns the sale of a given owner
+     */
+    function launchingFee() external view returns (uint256) {
+        return bifrostSettings.launchingFee();
+    }
+
+    /**
      * @notice Withdraws BNB from the contract
      */
     function withdrawBNB(uint256 amount) public onlyOwner {

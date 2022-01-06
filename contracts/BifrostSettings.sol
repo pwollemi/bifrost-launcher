@@ -26,25 +26,25 @@ contract BifrostSettings is Initializable, OwnableUpgradeable {
     /************************ Sale Settings  ***********************/
 
     // The flat fee in BNB (1e17 = 0.1 BNB)
-    uint256 public listingFee = 1e17;
+    uint256 public listingFee;
 
     // The percentage fee for raised funds (only applicable for successful sales) (100 = 1%)
-    uint256 public launchingFee = 100;
+    uint256 public launchingFee;
 
     // The minimum liquidity percentage (5000 = 50%)
-    uint256 public minLiquidityPercentage = 5000;
+    uint256 public minLiquidityPercentage;
 
     // The ratio of soft cap to hard cap, i.e. 50% means soft cap must be at least 50% of the hard cap
-    uint256 public minCapRatio = 5000;
+    uint256 public minCapRatio;
 
     // The minimum amount of time in seconds before liquidity can be unlocked
-    uint256 public minUnlockTimeSeconds = 30 days;
+    uint256 public minUnlockTimeSeconds;
 
     // The minimum amount of time in seconds a sale has to run for
-    uint256 public minSaleTime = 1 hours;
+    uint256 public minSaleTime;
 
     // If set, the maximum amount of time a sale has to run for
-    uint256 public maxSaleTime = 0;
+    uint256 public maxSaleTime;
 
     /************************ Stats  ***********************/
 
@@ -89,6 +89,14 @@ contract BifrostSettings is Initializable, OwnableUpgradeable {
         exchangeRouter = _exchangeRouter;
         saleImpl = _saleImpl;
         whitelistImpl = _whitelistImpl;
+
+        listingFee = 1e17;
+        launchingFee = 100;
+        minLiquidityPercentage = 5000;
+        minCapRatio = 5000;
+        minUnlockTimeSeconds = 30 days;
+        minSaleTime = 1 hours;
+        maxSaleTime = 0;
     }
 
     /**

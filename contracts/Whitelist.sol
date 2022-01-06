@@ -16,9 +16,6 @@ contract Whitelist is OwnableUpgradeable {
     /// @notice Count of users participating in whitelisting
     uint256 public totalUsers;
 
-    /// @dev White List
-    mapping(address => address) private whitelistedUsers;
-
     // Users list
     address[] internal userlist;
     mapping(address => uint256) internal indexOf;
@@ -58,8 +55,6 @@ contract Whitelist is OwnableUpgradeable {
 
         for (uint256 i = 0; i < users.length; i++) {
             address user = users[i];
-            // for now, allow any person in the list
-            whitelistedUsers[user] = user;
 
             if (inserted[user] == false) {
                 inserted[user] = true;
@@ -85,10 +80,6 @@ contract Whitelist is OwnableUpgradeable {
 
         for (uint256 i = 0; i < addrs.length; i++) {
             // Ignore for non-existing users
-            if (whitelistedUsers[addrs[i]] != address(0)) {
-                delete whitelistedUsers[addrs[i]];
-                emit AddedOrRemoved(false, addrs[i], block.timestamp);
-            }
             if (inserted[addrs[i]] == true) {
                 delete inserted[addrs[i]];
 
@@ -101,6 +92,8 @@ contract Whitelist is OwnableUpgradeable {
 
                 userlist[index] = lastUser;
                 userlist.pop();
+
+                emit AddedOrRemoved(false, addrs[i], block.timestamp);
             }
         }
         totalUsers = userlist.length;

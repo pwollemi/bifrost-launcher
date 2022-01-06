@@ -25,7 +25,6 @@ import "contracts/interface/IBifrostSale01.sol";
 import "contracts/interface/IBifrostSettings.sol";
 import "contracts/interface/IERC20Extended.sol";
 
-
 import "contracts/libraries/TransferHelper.sol";
 
 import "contracts/Whitelist.sol";
@@ -166,6 +165,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         TransferHelper.safeApprove(_tokenA, _bifrostRouter, type(uint256).max);
 
         exchangeRouter = IUniswapV2Router02(_exchangeRouter);
+        whitelistImpl = _whitelistImpl;
         unlockTime = _unlockTime;
     }
 
@@ -189,6 +189,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
 
         if(params.whitelisted) {
             whitelist = ClonesUpgradeable.clone(whitelistImpl);
+            Whitelist(whitelist).initialize();
         }
     }
 
