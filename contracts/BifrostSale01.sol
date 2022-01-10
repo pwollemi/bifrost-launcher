@@ -75,6 +75,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
     uint256   public end;           // The end date in UNIX seconds of the presale
     uint256   public unlockTime;    // The time in seconds that the liquidity lock should last
     address   public whitelist;     // Whitelist contract address
+    bool      public burn;          // Whether or not to burn remaining sale tokens (if false, refunds the sale runner)
 
     /**
      * @notice State Settings
@@ -91,7 +92,6 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
     uint256 public liquidityAmount;               // How many tokens are allocated for liquidity
     uint256 public raised;                        // How much BNB has been raised
     mapping(address => uint256) public _deposited; // A mapping of addresses to the amount of BNB they deposited
-
 
     /********************** Modifiers **********************/
 
@@ -164,6 +164,9 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         whitelistImpl = _whitelistImpl;
         proxyAdmin = _proxyAdmin;
         unlockTime = _unlockTime;
+
+        // TODO: Add a way for the runner to specify this
+        burn = true;
     }
 
     /**
@@ -331,13 +334,20 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
             lpToken = IUniswapV2Factory(exchangeRouter.factory()).getPair(tokenA, tokenB);
         }
 
-        // Send the sale runner the reamining eth and tokens\
+        // Send the sale runner the reamining BNB/tokens
         if (tokenB == address(0)) {
             TransferHelper.safeTransferETH(_msgSender(), totalTokenB.sub(liquidityTokenB));
         } else {
             TransferHelper.safeTransfer(tokenB, _msgSender(), totalTokenB.sub(liquidityTokenB));
         }
-        TransferHelper.safeTransfer(tokenA, _msgSender(), IERC20Upgradeable(tokenA).balanceOf(address(this)));
+
+        // Send the remaining sale tokens
+        uint256 remaining = IERC20Upgradeable(tokenA).balanceOf(address(this));
+        if (_burn) {
+            TransferHelper.safeTransfer(_token, 0x000000000000000000000000000000000000dEaD, remaining);
+        } else {
+            TransferHelper.safeTransfer(_token, msg.sender, remaining);
+        }
 
         launched = true;
     }
