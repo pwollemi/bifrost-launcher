@@ -406,7 +406,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
     /**
      * @notice EMERGENCY USE ONLY: Lets the owner of the sale reclaim any stuck funds
      */
-    function reclaim() external isRunner {
+    function reclaim() external isAdmin {
         require(canceled, "Sale hasn't been canceled");
         TransferHelper.safeTransfer(_token, runner, IERC20Upgradeable(_token).balanceOf(address(this)));
     }
