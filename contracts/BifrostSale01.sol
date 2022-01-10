@@ -16,7 +16,7 @@ import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import "contracts/interface/uniswap/IUniswapV2Router02.sol";
 import "contracts/interface/uniswap/IUniswapV2Factory.sol";
@@ -49,6 +49,9 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
 
     /// @notice The address of the whitelist implementation
     address public whitelistImpl;
+
+    /// @notice The address of the proxy admin
+    address public proxyAdmin;
 
     /// @notice The address of the bifrostRouter
     IUniswapV2Router02 public exchangeRouter;
@@ -150,6 +153,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         address _tokenB,
         address _exchangeRouter,
         address _whitelistImpl,
+        address _proxyAdmin,
         uint256 _unlockTime
     ) external initializer {
         __Context_init();
@@ -166,6 +170,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
 
         exchangeRouter = IUniswapV2Router02(_exchangeRouter);
         whitelistImpl = _whitelistImpl;
+        proxyAdmin = _proxyAdmin;
         unlockTime = _unlockTime;
     }
 
@@ -188,7 +193,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         totalTokens = saleAmount.add(liquidityAmount);
 
         if(params.whitelisted) {
-            whitelist = ClonesUpgradeable.clone(whitelistImpl);
+            whitelist = address(new TransparentUpgradeableProxy(whitelistImpl, proxyAdmin, new bytes(0)));
             Whitelist(whitelist).initialize();
         }
     }
@@ -203,7 +208,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
 
     function resetWhitelist() external isAdmin {
         if (whitelist != address(0)) {
-            whitelist = ClonesUpgradeable.clone(whitelistImpl);
+            whitelist = address(new TransparentUpgradeableProxy(whitelistImpl, proxyAdmin, new bytes(0)));
         }
     }
 
@@ -242,7 +247,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
     function setWhitelist() external isRunner {
         require(block.timestamp < start, "Sale started");
         require(whitelist == address(0), "There is already a whitelist!");
-        whitelist = address(new Whitelist());
+        whitelist = address(new TransparentUpgradeableProxy(whitelistImpl, proxyAdmin, new bytes(0)));
     }
 
     function removeWhitelist() external isRunner {

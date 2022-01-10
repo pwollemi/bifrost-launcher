@@ -41,6 +41,8 @@ describe("Bifrost", function () {
     let settings: BifrostSettings;
     let fakeUsers: any[];
 
+    let proxyAdmin: string;
+
     const saleParams = {
         soft,
         hard,
@@ -74,10 +76,15 @@ describe("Bifrost", function () {
     });
 
     beforeEach(async function () {
+        const signers = await ethers.getSigners();
+        fakeUsers = signers.map((signer, i) => (signer.address));
+
+        proxyAdmin = signers[9].address;
+
         rainbowToken = <RainbowToken>await deployContract("RainbowToken");
         const saleImpl = await deployContract("BifrostSale01");
         const whitelistImpl = await deployContract("Whitelist");
-        settings = <BifrostSettings>await deployProxy("BifrostSettings", "0x10ED43C718714eb63d5aA57B78B54704E256024E", saleImpl.address, whitelistImpl.address);
+        settings = <BifrostSettings>await deployProxy("BifrostSettings", "0x10ED43C718714eb63d5aA57B78B54704E256024E", proxyAdmin, saleImpl.address, whitelistImpl.address);
         router = <BifrostRouter01>await deployProxy("BifrostRouter01", settings.address);
 
         await settings.setBifrostRouter(router.address);
@@ -87,9 +94,6 @@ describe("Bifrost", function () {
 
         await rainbowToken.transfer(alice.address, await ethers.utils.parseUnits("1000000000", 9));
         await rainbowToken.excludeFromFee(router.address);
-
-        const signers = await ethers.getSigners();
-        fakeUsers = signers.map((signer, i) => (signer.address));
     });
 
     describe("Set Partner token", function () {

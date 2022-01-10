@@ -63,6 +63,8 @@ interface IBifrostSettings {
 
     function saleImpl() external view returns (address);
 
+    function proxyAdmin() external view returns (address);
+
     function whitelistImpl() external view returns (address);
 
 

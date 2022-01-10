@@ -79,16 +79,20 @@ contract BifrostSettings is Initializable, OwnableUpgradeable {
     /// @notice Whitelist Implementation
     address public whitelistImpl;
 
+    /// @notice Proxy admin
+    address public proxyAdmin;
+
     /**
      * @notice The constructor for the router
      */
-    function initialize(IUniswapV2Router02 _exchangeRouter, address _saleImpl, address _whitelistImpl) external initializer {
+    function initialize(IUniswapV2Router02 _exchangeRouter, address _proxyAdmin, address _saleImpl, address _whitelistImpl) external initializer {
         __Ownable_init();
 
         // = IPancakeRouter02(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3); //0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3  0x10ED43C718714eb63d5aA57B78B54704E256024E
         exchangeRouter = _exchangeRouter;
         saleImpl = _saleImpl;
         whitelistImpl = _whitelistImpl;
+        proxyAdmin = _proxyAdmin;
 
         listingFee = 1e17;
         launchingFee = 100;
@@ -112,6 +116,10 @@ contract BifrostSettings is Initializable, OwnableUpgradeable {
 
     function setWhitelistImpl(address _whitelistImpl) external onlyOwner {
         whitelistImpl = _whitelistImpl;
+    }
+
+    function setProxyAdmin(address _proxyAdmin) external onlyOwner {
+        proxyAdmin = _proxyAdmin;
     }
 
     function setBifrostRouter(address _bifrostRouter) external onlyOwner {

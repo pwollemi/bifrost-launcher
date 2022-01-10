@@ -16,7 +16,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import "contracts/interface/IBifrostRouter01.sol";
 import "contracts/interface/IBifrostSale01.sol";
@@ -120,7 +120,7 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
         }
 
         BifrostSale01 newSale = BifrostSale01(
-            payable(ClonesUpgradeable.clone(bifrostSettings.saleImpl()))
+            payable(address(new TransparentUpgradeableProxy(bifrostSettings.saleImpl(), bifrostSettings.proxyAdmin(), new bytes(0))))
         );
         newSale.initialize(
             payable(address(this)),
@@ -130,6 +130,7 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
             fundToken,
             bifrostSettings.exchangeRouter(),
             bifrostSettings.whitelistImpl(),
+            bifrostSettings.proxyAdmin(),
             saleParams.unlockTime
         );
         newSale.configure(saleParams);
