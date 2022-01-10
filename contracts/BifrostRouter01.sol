@@ -40,7 +40,7 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
 
 
     /// @notice 100%
-    uint256 public constant TOTAL_PERCERNTAGE = 10000; 
+    uint256 public constant TOTAL_PERCENTAGE = 10000; 
 
     /// @notice Bifrost Settings
     IBifrostSettings bifrostSettings;
@@ -92,7 +92,7 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
 
         // Gets the fee in tokens, then takes a percentage discount to incentivize people paying in tokens.
         uint256 feeInToken = bifrostSettings.listingFeeInToken(token);
-        uint256 discountedFee = feeInToken.mul(TOTAL_PERCERNTAGE.sub(uint256(partnerToken.discount))).div(TOTAL_PERCERNTAGE);
+        uint256 discountedFee = feeInToken.mul(TOTAL_PERCENTAGE.sub(uint256(partnerToken.discount))).div(TOTAL_PERCENTAGE);
         TransferHelper.safeTransferFrom(token, _msgSender(), owner(), discountedFee);
         feePaid[_msgSender()] = true;
 
@@ -108,7 +108,7 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
         IBifrostSale01.SaleParams memory saleParams
     ) external payable {
         // Ensure the runner hasn't run a sale before
-        //TODO: add back require(!sales[_msgSender()].created, "This wallet is already managing a sale!");
+        require(!sales[_msgSender()].created, "This wallet is already managing a sale!");
 
         // Validates the sale config
         bifrostSettings.validate(saleParams.soft, saleParams.hard, saleParams.liquidity, saleParams.start, saleParams.end, saleParams.unlockTime);
@@ -138,10 +138,10 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
 
         // Transfer via the Router to avoid taxing
         IERC20Upgradeable(token).transferFrom(_msgSender(), address(this), newSale.totalTokens());
-        IERC20Upgradeable(token).transferFrom(_msgSender(), owner(), newSale.saleAmount().div(100));
+        IERC20Upgradeable(token).transferFrom(_msgSender(), owner(), newSale.saleAmount().mul(bifrostSettings.launchingFee()).div(1e4));
 
         // Incase tax wasn't disabled, transfer as many tokens as we can and ask the developer to
-        // fix this with a top
+        // fix this with a topup
         IERC20Upgradeable(token).transfer(address(newSale), IERC20Upgradeable(token).balanceOf(address(this)));
     }
 

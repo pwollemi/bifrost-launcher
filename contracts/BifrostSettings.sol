@@ -46,6 +46,9 @@ contract BifrostSettings is Initializable, OwnableUpgradeable {
     // If set, the maximum amount of time a sale has to run for
     uint256 public maxSaleTime;
 
+    // The early withdraw penalty for users wishing to reclaim deposited BNB/tokens (2 dp precision)
+    uint256 public earlyWithdrawPenalty;
+
     /************************ Stats  ***********************/
 
     /// @notice Total amount of BNB raised
@@ -65,7 +68,6 @@ contract BifrostSettings is Initializable, OwnableUpgradeable {
 
     /// @notice List of sales launch status
     mapping(address => bool) public launched;
-
 
     /// @notice Bifrost Router address
     address public bifrostRouter;
@@ -101,6 +103,7 @@ contract BifrostSettings is Initializable, OwnableUpgradeable {
         minUnlockTimeSeconds = 30 days;
         minSaleTime = 1 hours;
         maxSaleTime = 0;
+        earlyWithdrawPenalty = 2000;
     }
 
     /**

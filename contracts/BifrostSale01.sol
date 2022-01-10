@@ -104,14 +104,6 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
     }
 
     /**
-     * @notice Checks if the caller is the Sale owner
-     */
-    modifier isRunner {
-        require(runner == _msgSender(), "Caller isnt an runner");
-        _;
-    }
-
-    /**
      * @notice Checks if the sale is running
      */
     modifier isRunning {
@@ -244,30 +236,31 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         }
     }
 
-    function setWhitelist() external isRunner {
+    function setWhitelist() external isAdmin {
         require(block.timestamp < start, "Sale started");
         require(whitelist == address(0), "There is already a whitelist!");
         whitelist = address(new TransparentUpgradeableProxy(whitelistImpl, proxyAdmin, new bytes(0)));
     }
 
-    function removeWhitelist() external isRunner {
+    function removeWhitelist() external isAdmin {
         require(block.timestamp < start, "Sale started");
         require(whitelist != address(0), "There isn't a whitelist set");
         whitelist = address(0);
     }
 
-    function addToWhitelist(address[] memory users) external isRunner {
-        require(block.timestamp < start, "Sale started");
+    function addToWhitelist(address[] memory users) external isAdmin {
+        require(block.timestamp < end, "Sale ended");
         Whitelist(whitelist).addToWhitelist(users);
     }
 
-    function removeFromWhitelist(address[] memory addrs) external isRunner {
+    function removeFromWhitelist(address[] memory addrs) external isAdmin {
         require(block.timestamp < start, "Sale started");
         Whitelist(whitelist).removeFromWhitelist(addrs);
     }
 
     function cancel() external isAdmin {
-        require(block.timestamp < start, "Sale started");
+        require(!launched, "Sale has launched");
+        end = block.timestamp;
         canceled = true;
     }
 
@@ -301,27 +294,6 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         }
         _deposited[user] = _deposited[user].add(amount);
         raised = raised.add(amount);
-    }
-
-
-    /**
-     * @notice 
-     */
-    function withdrawDeposit(uint256 amount) external {
-        require(!canceled, "Sale is canceled");
-        require(running(), "Sale isn't running!");
-        require(canStart(), "Token balance isn't topped up!");
-
-        _deposited[msg.sender] = _deposited[msg.sender].sub(amount);
-        raised = raised.sub(amount);
-
-        if (tokenB == address(0)) {
-            payable(msg.sender).transfer(amount.mul(8).div(10));
-            payable(owner).transfer(amount.mul(2).div(10));
-        } else {
-            IERC20Upgradeable(tokenB).transfer(msg.sender, amount.mul(8).div(10));
-            IERC20Upgradeable(tokenB).transfer(owner, amount.mul(2).div(10));
-        }
     }
 
     /**
@@ -380,22 +352,69 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         uint256 amount = _deposited[_msgSender()];
         _deposited[_msgSender()] = 0;
 
-        // Give the user their tokens
+        // If the sale was successful, then we give the user their tokens only once the sale has been finalized and launched
+        // Otherwise return to them the full amount of BNB/tokens that they pledged for this sale!
         if(successful()) {
             require(launched, "Sale hasnt finalized");
             uint256 tokens = amount.mul(presaleRate).div(1e18);
             TransferHelper.safeTransfer(tokenA, _msgSender(), tokens);
+        } else if (failed()) {
+            if (tokenB == address(0)) {
+                payable(msg.sender).transfer(amount);
+            } else {
+                IERC20Upgradeable(tokenB).transfer(msg.sender, amount);
+            }
+        }
+    }
+
+    /**
+     * @notice For users to withdraw their deposited funds before the sale has been concluded
+     * @dev This incurs a tax, where Bifrost will take a cut of this tax
+     */
+    function earlyWithdraw() external {
+        require(!canceled, "Sale is canceled");
+        require(running(), "Sale isn't running!");
+        require(canStart(), "Token balance isn't topped up!");
+
+        uint256 amount = _deposited[msg.sender];
+        _deposited[msg.sender] = _deposited[msg.sender].sub(amount);
+        raised = raised.sub(amount);
+
+        // The portion of the deposited tokens that will be taxed
+        uint256 taxed = amount.mul(bifrostRouter.bifrostSettings.earlyWithdrawPenalty).div(1e4);
+        uint256 returned = amount.sub(taxed);
+
+        if (tokenB == address(0)) {
+            payable(msg.sender).transfer(returned);
+            payable(owner).transfer(taxed);
         } else {
-            // Otherwise return the user their BNB
-            payable(_msgSender()).transfer(amount);
+            IERC20Upgradeable(tokenB).transfer(msg.sender, returned);
+            IERC20Upgradeable(tokenB).transfer(owner, taxed);
         }
     }
 
     /**
      * @notice EMERGENCY USE ONLY: Lets the owner of the sale reclaim any stuck funds
      */
-    function reclaim() external view {
-        require(address(bifrostRouter) == _msgSender() || owner == _msgSender(), "User not Bifrost");
+    function reclaim() external isRunner {
+        require(canceled, "Sale hasn't been canceled");
+        TransferHelper.safeTransfer(_token, runner, IERC20Upgradeable(_token).balanceOf(address(this)));
+    }
+
+    /**
+     * @notice Withdraws BNB from the contract
+     */
+    function emergencyWithdrawBNB() payable external {
+        require(owner == _msgSender(), "Only owner");
+        payable(owner).transfer(address(this).balance);
+    }
+
+    /**
+     * @notice Withdraws tokens that are stuck
+     */
+    function emergencyWithdrawTokens(address _token) payable external {
+        require(owner == _msgSender(), "Only owner");
+        TransferHelper.safeTransfer(_token, owner, IERC20Upgradeable(_token).balanceOf(address(this)));
     }
 
     /**
@@ -413,24 +432,6 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         TransferHelper.safeTransfer(lpToken, _msgSender(), IERC20Upgradeable(lpToken).balanceOf(address(this)));
     }
 
-    /**
-     * @notice Withdraws BNB from the contract
-     */
-    function emergencyWithdrawBNB() payable external {
-        require(block.timestamp > end.add(48 hours), "Can only call 48-hours after sales ended");
-        require(owner == _msgSender(), "Only owner");
-        payable(owner).transfer(address(this).balance);
-    }
-
-    /**
-     * @notice Withdraws tokens that are stuck
-     */
-    function emergencyWithdrawTokens(address _token) payable external {
-        require(block.timestamp > end.add(48 hours), "Can only call 48-hours after sales ended");
-        require(owner == _msgSender(), "Only owner");
-        TransferHelper.safeTransfer(_token, owner, IERC20Upgradeable(_token).balanceOf(address(this)));
-    }
-
     function successful() public view returns(bool) {
         return raised >= softCap;
     }
@@ -441,6 +442,10 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
 
     function ended() public view returns(bool) {
         return block.timestamp >= end || launched;
+    }
+
+    function failed() public view returns(bool) {
+        return block.timestamp >= end || !successful(); 
     }
 
     function canStart() public view returns(bool) {
