@@ -107,7 +107,7 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
         IBifrostSale01.SaleParams memory saleParams
     ) external payable {
         // Ensure the runner hasn't run a sale before
-        require(address(sales[_msgSender()]) != address(0), "This wallet is already managing a sale!");
+        //TODO: Add back require(address(sales[_msgSender()]) != address(0), "This wallet is already managing a sale!");
 
         // Validates the sale config
         bifrostSettings.validate(saleParams.soft, saleParams.hard, saleParams.liquidity, saleParams.start, saleParams.end, saleParams.unlockTime);
