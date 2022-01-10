@@ -153,6 +153,10 @@ contract BifrostSettings is Initializable, OwnableUpgradeable {
         minSaleTime = _minSaleTime;
     }
 
+    function setEarlyWithdrawPenalty(uint256 _earlyWithdrawPenalty) external onlyOwner {
+        earlyWithdrawPenalty = _earlyWithdrawPenalty;
+    }
+
     /**
      * @notice Get listing fee in token price
      */

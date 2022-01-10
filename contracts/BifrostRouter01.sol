@@ -54,7 +54,6 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
     /// @notice A mapping of wallet addresses to a flag for whether they paid the fee via a partner token or not
     mapping (address => bool) public feePaid;
 
-
     /// @notice Emitted when a new sale is created
     event SaleCreated(address indexed runner, address indexed sale);
 
@@ -108,7 +107,7 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
         IBifrostSale01.SaleParams memory saleParams
     ) external payable {
         // Ensure the runner hasn't run a sale before
-        require(!sales[_msgSender()].created, "This wallet is already managing a sale!");
+        require(address(sales[_msgSender()]) != address(0), "This wallet is already managing a sale!");
 
         // Validates the sale config
         bifrostSettings.validate(saleParams.soft, saleParams.hard, saleParams.liquidity, saleParams.start, saleParams.end, saleParams.unlockTime);
@@ -180,6 +179,13 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
      */
     function launchingFee() external view returns (uint256) {
         return bifrostSettings.launchingFee();
+    }
+
+    /**
+     * @notice Returns the sale of a given owner
+     */
+    function earlyWithdrawPenalty() external view returns (uint256) {
+        return bifrostSettings.earlyWithdrawPenalty();
     }
 
     /**

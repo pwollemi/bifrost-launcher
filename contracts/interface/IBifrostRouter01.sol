@@ -21,6 +21,7 @@ interface IBifrostRouter01 {
 
     // Bifrost interface
     function launchingFee() external view returns (uint256);
+    function earlyWithdrawPenalty() external view returns (uint256);
     function validate(
         uint256 soft, 
         uint256 hard, 

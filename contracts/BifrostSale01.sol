@@ -343,10 +343,10 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
 
         // Send the remaining sale tokens
         uint256 remaining = IERC20Upgradeable(tokenA).balanceOf(address(this));
-        if (_burn) {
-            TransferHelper.safeTransfer(_token, 0x000000000000000000000000000000000000dEaD, remaining);
+        if (burn) {
+            TransferHelper.safeTransfer(tokenA, 0x000000000000000000000000000000000000dEaD, remaining);
         } else {
-            TransferHelper.safeTransfer(_token, msg.sender, remaining);
+            TransferHelper.safeTransfer(tokenA, msg.sender, remaining);
         }
 
         launched = true;
@@ -391,7 +391,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         raised = raised.sub(amount);
 
         // The portion of the deposited tokens that will be taxed
-        uint256 taxed = amount.mul(bifrostRouter.bifrostSettings.earlyWithdrawPenalty).div(1e4);
+        uint256 taxed = amount.mul(bifrostRouter.earlyWithdrawPenalty()).div(1e4);
         uint256 returned = amount.sub(taxed);
 
         if (tokenB == address(0)) {
@@ -408,7 +408,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
      */
     function reclaim() external isAdmin {
         require(canceled, "Sale hasn't been canceled");
-        TransferHelper.safeTransfer(_token, runner, IERC20Upgradeable(_token).balanceOf(address(this)));
+        TransferHelper.safeTransfer(tokenA, runner, IERC20Upgradeable(tokenA).balanceOf(address(this)));
     }
 
     /**
@@ -424,7 +424,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
      */
     function emergencyWithdrawTokens(address _token) payable external {
         require(owner == _msgSender(), "Only owner");
-        TransferHelper.safeTransfer(_token, owner, IERC20Upgradeable(_token).balanceOf(address(this)));
+        TransferHelper.safeTransfer(tokenA, owner, IERC20Upgradeable(tokenA).balanceOf(address(this)));
     }
 
     /**

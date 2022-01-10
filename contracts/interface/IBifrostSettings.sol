@@ -30,6 +30,8 @@ interface IBifrostSettings {
 
     function maxSaleTime() external view returns (uint256);
 
+    function earlyWithdrawPenalty() external view returns (uint256);
+
     /************************ Stats  ***********************/
 
     function totalRaised() external view returns (uint256);
@@ -58,6 +60,7 @@ interface IBifrostSettings {
 
     function setMinimumSaleTime(uint256 _minSaleTime) external;
 
+    function setEarlyWithdrawPenalty(uint256 _earlyWithdrawPenalty) external;
 
     function exchangeRouter() external view returns (address);
 
