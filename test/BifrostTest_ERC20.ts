@@ -209,15 +209,16 @@ describe("Bifrost", function () {
     });
 
     describe("BifrostSale", function () {
-        it("cannot modify whitelist if sale is started", async () => {
+        it("cannot add whitelist if sale is ended, cannot remove if sale started", async () => {
             const startTime = (await latest()).toNumber() + 86400;
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
             await sale.connect(alice).addToWhitelist(fakeUsers);
 
             await setNextBlockTimestamp(startTime);
-            await expect(sale.connect(alice).addToWhitelist(fakeUsers)).to.be.revertedWith("Sale started");
             await expect(sale.connect(alice).removeFromWhitelist([bob.address])).to.be.revertedWith("Sale started");
+            await setNextBlockTimestamp(endTime);
+            await expect(sale.connect(alice).addToWhitelist(fakeUsers)).to.be.revertedWith("Sale ended");
         });
 
         it("deposit: all fails before sale started", async () => {
@@ -398,22 +399,13 @@ describe("Bifrost", function () {
             await sale.connect(alice).cancel();
         });
 
-        it("cannot cancel if sale started", async () => {
-            const startTime = (await latest()).toNumber() + 86400;
-            const endTime = startTime + 3600;
-            const sale = await createSaleContract(startTime, endTime);
-            await setNextBlockTimestamp(startTime);
-            await expect(sale.connect(alice).cancel()).to.be.revertedWith("Sale started");
-        });
-
         it("cannot deposit if sale is canceled", async () => {
             const startTime = (await latest()).toNumber() + 86400;
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
             await sale.cancel();
             await setNextBlockTimestamp(startTime);
-
-            await setNextBlockTimestamp(startTime);
+            await mineBlock();
 
             await busdToken.connect(bob).approve(sale.address, ethers.constants.MaxInt256);
             await expect(sale.connect(bob).deposit(ethers.utils.parseUnits("2", BUSD.decimals))).to.be.revertedWith("Sale is canceled");

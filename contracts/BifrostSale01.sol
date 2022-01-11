@@ -271,7 +271,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
      * @notice For users to deposit into the sale
      * @dev This entitles _msgSender() to (amount * presaleRate) after a successful sale
      */
-    function deposit(uint256 amount) external payable isRunning {
+    function deposit(uint256 amount) external payable {
         if (tokenB == address(0)) {
             _deposit(_msgSender(), msg.value);
         } else {

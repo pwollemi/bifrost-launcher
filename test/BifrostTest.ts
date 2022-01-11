@@ -207,15 +207,16 @@ describe("Bifrost", function () {
     });
 
     describe("BifrostSale", function () {
-        it("cannot modify whitelist if sale is started", async () => {
+        it("cannot add whitelist if sale is ended, cannot remove if sale started", async () => {
             const startTime = (await latest()).toNumber() + 86400;
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
             await sale.connect(alice).addToWhitelist(fakeUsers);
 
             await setNextBlockTimestamp(startTime);
-            await expect(sale.connect(alice).addToWhitelist(fakeUsers)).to.be.revertedWith("Sale started");
             await expect(sale.connect(alice).removeFromWhitelist([bob.address])).to.be.revertedWith("Sale started");
+            await setNextBlockTimestamp(endTime);
+            await expect(sale.connect(alice).addToWhitelist(fakeUsers)).to.be.revertedWith("Sale ended");
         });
 
         it("deposit: all fails before sale started", async () => {
@@ -392,27 +393,18 @@ describe("Bifrost", function () {
             await sale.connect(alice).cancel();
         });
 
-        it("cannot cancel if sale started", async () => {
-            const startTime = (await latest()).toNumber() + 86400;
-            const endTime = startTime + 3600;
-            const sale = await createSaleContract(startTime, endTime);
-            await setNextBlockTimestamp(startTime);
-            await expect(sale.connect(alice).cancel()).to.be.revertedWith("Sale started");
-        });
-
         it("cannot deposit if sale is canceled", async () => {
             const startTime = (await latest()).toNumber() + 86400;
             const endTime = startTime + 3600;
             const sale = await createSaleContract(startTime, endTime);
             await sale.cancel();
             await setNextBlockTimestamp(startTime);
-
-            await setNextBlockTimestamp(startTime);
+            await mineBlock();
 
             // deposit via direct transfer
             await expect(alice.sendTransaction({
                 to: sale.address,
-                value: ethers.utils.parseEther("0.1")
+                value: ethers.utils.parseEther("1")
             })).to.be.revertedWith("Sale is canceled");
 
             await expect(sale.connect(bob).deposit(ethers.utils.parseEther("2"), {
