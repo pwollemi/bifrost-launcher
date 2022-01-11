@@ -153,6 +153,10 @@ contract BifrostSettings is Initializable, OwnableUpgradeable {
         minSaleTime = _minSaleTime;
     }
 
+    function setMaximumSaleTime(uint256 _maxSaleTime) external onlyOwner {
+        maxSaleTime = _maxSaleTime;
+    }
+
     function setEarlyWithdrawPenalty(uint256 _earlyWithdrawPenalty) external onlyOwner {
         earlyWithdrawPenalty = _earlyWithdrawPenalty;
     }
