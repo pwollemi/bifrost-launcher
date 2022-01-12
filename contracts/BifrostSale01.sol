@@ -306,7 +306,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         end = block.timestamp;
 
         // First take the developer cut
-        uint256 devTokenB   = raised.mul(bifrostRouter.launchingFee()).div(1e4);
+        uint256 devTokenB = raised.mul(bifrostRouter.launchingFee()).div(1e4);
         uint256 devTokenA = getTokenAAmount(devTokenB, listingRate);
         if (tokenB == address(0)) {
             TransferHelper.safeTransferETH(owner, devTokenB);
@@ -342,7 +342,8 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         }
 
         // Send the remaining sale tokens
-        uint256 remaining = IERC20Upgradeable(tokenA).balanceOf(address(this));
+        uint256 soldTokens = getTokenAAmount(raised, presaleRate);
+        uint256 remaining = IERC20Upgradeable(tokenA).balanceOf(address(this)) - soldTokens;
         if (burn) {
             TransferHelper.safeTransfer(tokenA, 0x000000000000000000000000000000000000dEaD, remaining);
         } else {
@@ -366,7 +367,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         // Otherwise return to them the full amount of BNB/tokens that they pledged for this sale!
         if(successful()) {
             require(launched, "Sale hasnt finalized");
-            uint256 tokens = amount.mul(presaleRate).div(1e18);
+            uint256 tokens = getTokenAAmount(amount, presaleRate);
             TransferHelper.safeTransfer(tokenA, _msgSender(), tokens);
         } else if (failed()) {
             if (tokenB == address(0)) {

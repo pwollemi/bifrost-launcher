@@ -318,21 +318,37 @@ describe("Bifrost", function () {
             await sale.connect(alice).addToWhitelist(fakeUsers);
             await busdToken.connect(bob).approve(sale.address, ethers.constants.MaxInt256);
 
-            const raised = hard;
+            const raised = soft;
             await setNextBlockTimestamp(startTime);
             await sale.connect(bob).deposit(raised);
 
             // TODO: CAUTION HERE!!!
             await rainbowToken.excludeFromFee(sale.address);
 
+            const totalTokens = await sale.totalTokens();
+            // 1% devcut
+            // liqudity percentage
+            const devFeeTokens = raised.div(100).mul(listingRate).div(ethers.utils.parseUnits("1", BUSD.decimals + 1));
+            const liquidityAmount = raised.mul(listingRate).mul(99).div(100).mul(liquidity).div(1e4).div(ethers.utils.parseUnits("1", BUSD.decimals + 1));
+            const soldTokens = raised.mul(presaleRate).div(ethers.utils.parseUnits("1", BUSD.decimals + 1));
+
             const ownerBUSD0 = await busdToken.balanceOf(owner.address);
             const tokenBalance0 = await rainbowToken.balanceOf(owner.address);
+            const deadBalance0 = await rainbowToken.balanceOf("0x000000000000000000000000000000000000dEaD");
             await sale.connect(alice).finalize();
             const ownerBUSD1 = await busdToken.balanceOf(owner.address);
+            const deadBalance1 = await rainbowToken.balanceOf("0x000000000000000000000000000000000000dEaD");
             const tokenBalance1 = await rainbowToken.balanceOf(owner.address);
+
+            expect(deadBalance1.sub(deadBalance0)).to.be.equal(totalTokens.sub(soldTokens).sub(liquidityAmount).sub(devFeeTokens));
 
             // consider decimal diff and listing rate accuracy
             expect(ownerBUSD1.sub(ownerBUSD0)).to.be.equal(raised.div(100)).to.be.equal(tokenBalance1.sub(tokenBalance0).mul(1e10).mul(1e9).div(listingRate));
+
+            const bobToken0 = await rainbowToken.balanceOf(bob.address);
+            await sale.connect(bob).withdraw();
+            const bobToken1 = await rainbowToken.balanceOf(bob.address);
+            expect(bobToken1.sub(bobToken0)).to.be.equal(soldTokens);
         });
     });
 

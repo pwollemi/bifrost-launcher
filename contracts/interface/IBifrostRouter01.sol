@@ -22,26 +22,4 @@ interface IBifrostRouter01 {
     // Bifrost interface
     function launchingFee() external view returns (uint256);
     function earlyWithdrawPenalty() external view returns (uint256);
-    function validate(
-        uint256 soft, 
-        uint256 hard, 
-        uint256 liquidity, 
-        uint256 start, 
-        uint256 end, 
-        uint256 unlockTime
-    ) external view;
-    function createSale(
-        address token, 
-        uint256 soft, 
-        uint256 hard, 
-        uint256 min, 
-        uint256 max, 
-        uint256 presaleRate, 
-        uint256 listingRate, 
-        uint256 liquidity, 
-        uint256 start, 
-        uint256 end, 
-        uint256 unlockTime,
-        bool    whitelisted
-    ) external payable;
 }
