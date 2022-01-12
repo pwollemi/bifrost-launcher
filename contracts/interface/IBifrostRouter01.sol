@@ -20,6 +20,7 @@ interface IBifrostRouter01 {
     function withdrawForeignToken(address token) external;
 
     // Bifrost interface
+    function listingFee() external view returns (uint256);
     function launchingFee() external view returns (uint256);
     function earlyWithdrawPenalty() external view returns (uint256);
 }

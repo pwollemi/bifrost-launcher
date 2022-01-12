@@ -13,9 +13,12 @@ import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 
 const mnemonic = process.env.WORKER_SEED || "";
+const mnemonic2 = process.env.RAINBOW_DEPLOY || "";
+const mnemonic3 = process.env.RAINBOW_TREASURY || "";
+const mnemonic4 = process.env.BIFROST_DEPLOY || "";
 
 const defaultConfig = {
-  accounts: { mnemonic },
+  accounts: { mnemonic, mnemonic2, mnemonic3, mnemonic4 },
 }
 
 
@@ -33,6 +36,11 @@ const config: HardhatUserConfig = {
   networks: {
     localhost: {
       url: "http://127.0.0.1:8545",
+    },
+    mainnet: {
+      url: "https://speedy-nodes-nyc.moralis.io/50561c02c5a853febf23eb96/bsc/mainnet",
+      chainId: 56,
+      ...defaultConfig
     },
     testnet: {
       url: "https://speedy-nodes-nyc.moralis.io/50561c02c5a853febf23eb96/bsc/testnet",
