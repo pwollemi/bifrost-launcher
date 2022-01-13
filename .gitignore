@@ -10,3 +10,5 @@ typechain
 package-lock.json
 
 data/
+
+.openzeppelin

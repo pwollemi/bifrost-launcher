@@ -13,14 +13,11 @@ import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 
 const mnemonic = process.env.WORKER_SEED || "";
-const mnemonic2 = process.env.RAINBOW_DEPLOY || "";
-const mnemonic3 = process.env.RAINBOW_TREASURY || "";
-const mnemonic4 = process.env.BIFROST_DEPLOY || "";
+const privateKey = process.env.BIFROST_DEPLOY || "";
 
 const defaultConfig = {
-  accounts: { mnemonic, mnemonic2, mnemonic3, mnemonic4 },
+  accounts: { mnemonic },
 }
-
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -39,13 +36,11 @@ const config: HardhatUserConfig = {
     },
     mainnet: {
       url: "https://speedy-nodes-nyc.moralis.io/50561c02c5a853febf23eb96/bsc/mainnet",
-      chainId: 56,
-      ...defaultConfig
+      accounts: [privateKey]
     },
     testnet: {
       url: "https://speedy-nodes-nyc.moralis.io/50561c02c5a853febf23eb96/bsc/testnet",
-      chainId: 97,
-      ...defaultConfig
+      accounts: [privateKey]
     },
     hardhat: {
       forking: {
@@ -60,9 +55,10 @@ const config: HardhatUserConfig = {
   },
   abiExporter: {
     path: './data/abi',
+    runOnCompile: true,
     clear: true,
-    flat: true,
-    spacing: 0,
+    flat: false,
+    spacing: 2,
     pretty: false,
   },
   contractSizer: {
