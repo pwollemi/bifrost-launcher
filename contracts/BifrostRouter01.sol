@@ -43,7 +43,7 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
     uint256 public constant TOTAL_PERCENTAGE = 10000; 
 
     /// @notice Bifrost Settings
-    IBifrostSettings bifrostSettings;
+    IBifrostSettings public bifrostSettings;
 
     // A mapping of token contract addresses to a flag describing whether or not they can be used to pay a fee
     mapping (address => PartnerToken) public partnerTokens;
