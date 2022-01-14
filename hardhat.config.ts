@@ -14,6 +14,7 @@ dotEnvConfig();
 
 const mnemonic = process.env.WORKER_SEED || "";
 const privateKey = process.env.BIFROST_DEPLOY || "";
+const privateKey2 = process.env.RAINBOW_DEPLOY || "";
 
 const defaultConfig = {
   accounts: { mnemonic },
@@ -36,11 +37,12 @@ const config: HardhatUserConfig = {
     },
     mainnet: {
       url: "https://speedy-nodes-nyc.moralis.io/50561c02c5a853febf23eb96/bsc/mainnet",
-      accounts: [privateKey]
+      accounts: [privateKey, privateKey2]
     },
     testnet: {
       url: "https://speedy-nodes-nyc.moralis.io/50561c02c5a853febf23eb96/bsc/testnet",
-      accounts: [privateKey]
+      accounts: [privateKey, privateKey2],
+      allowUnlimitedContractSize: true
     },
     hardhat: {
       forking: {

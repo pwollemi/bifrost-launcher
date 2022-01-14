@@ -1,8 +1,12 @@
 import { Contract } from "ethers";
 import hre, { ethers, upgrades } from "hardhat";
-import { BifrostSale01, BifrostSettings, BifrostRouter01 } from "../typechain";
+import { BifrostSale01, BifrostSettings, BifrostRouter01, CustomToken } from "../typechain";
 import { Ierc20Extended } from "../typechain/Ierc20Extended";
 import { deployContract, deployProxy } from "./deployer";
+
+import CONFIG_JSON from "./config.json";
+
+const config: {[index: string]:any} = CONFIG_JSON;
 
 // Be sure of this admin
 // This admin contract address can be found in ".openzeppelin" folder
@@ -55,26 +59,64 @@ async function setProxyAdmin() {
 
 async function upgradeRouterContract() {
   const routerFactory = await ethers.getContractFactory("BifrostRouter01");
-  let ret = await upgrades.upgradeProxy("0x7917f78F3368990DF1655D975a1a43F21D5bFca2", routerFactory);
+  let ret = await upgrades.upgradeProxy("0x5Ec5c9b9224186E919CF2983a0c82fC05F0b05C2", routerFactory);
 }
 
-async function upgradeSaleContract(owner: string = "") {
-    // Input router address
-    // const router = <BifrostRouter01>await ethers.getContractAt("BifrostRouter01", "");
-
-    // const saleInfos = await router.getSaleByOwner(owner);
-    // const saleAddress = saleInfos[2];
-
-    //const saleFactory = await ethers.getContractFactory("BifrostSale01");
-    //await upgrades.upgradeProxy('0x54C6Ec7234911AD229d40c135c26cFaA32294534', saleFactory);
+async function upgradeSaleContract(sale: string) {
+    const saleFactory = await ethers.getContractFactory("BifrostSale01");
+    await upgrades.upgradeProxy(sale, saleFactory);
 }
+
+async function deploySaleImplementation() {
+  const saleImpl = await deployContract("BifrostSale01");
+  console.log("Sale Implementation", saleImpl.address);
+}
+
+import PROXY_ADMIN_ABI from './ProxyAdmin.json'
 
 async function main() {
+
+  /**
+   * Initialize, getting the correct settings 
+   */
+  // const chainId: any  = await hre.getChainId();
+  // console.log("Chain:", chainId);
+  // const proxyAdmin = config[chainId].proxyAdmin;
+  // const routerProxy = config[chainId].router;
+  // const settingsProxy = config[chainId].settings;
+  // console.log("Proxy Admin:", proxyAdmin);
+  // console.log("Router (Proxy):", routerProxy);
+  // console.log("Settings (Proxy):", settingsProxy);
+
+  /**
+   * Create a new token
+   */
+  // const rewardToken = <CustomToken>await deployContract("CustomToken", "TEST", "TEST", ethers.utils.parseUnits("10000000000", 18));
+  // console.log("Address", rewardToken.address);
+  // await rewardToken.transfer("0x1bA1d0F472f44c8f41f65CA10AB43A038969DF57", ethers.utils.parseUnits("10000000000", 18));
+
+  /**
+   * Deploy a new bifrost contract
+   */
   //await deployBifrostContracts();
 
-  //await upgradeSaleContract();
+  /**
+   * Upgrade an existing bifrost router
+   */
+  // const routerFactory = await ethers.getContractFactory("BifrostRouter01");
+  // let ret = await upgrades.upgradeProxy("0x5Ec5c9b9224186E919CF2983a0c82fC05F0b05C2", routerFactory);
 
-  await deployBifrostContracts();
+  /**
+   * Upgrade a sale contract
+   */
+  // const saleToUpgrade = '0xa8f6006236Cb1458571ef3B88CdC6A5F3a9dEEC1';
+  // const saleImpl = await deployContract("BifrostSale01");
+  // console.log("New Sale (Implementation)", saleImpl.address);
+  // const proxyAdminContract = await ethers.getContractAt(PROXY_ADMIN_ABI, proxyAdmin);
+  // await proxyAdminContract.upgrade(saleToUpgrade, saleImpl.address);
+  // let settingsAddress = "0x1E78E815b4B0Ca9c74B8217E8FCE90977B4ea03d";
+  // const settings = <BifrostSettings>await ethers.getContractAt("BifrostSettings", settingsAddress)
+  // await settings.setSaleImpl(saleImpl.address);
 }
 
 main()
