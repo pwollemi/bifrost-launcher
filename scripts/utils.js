@@ -52,7 +52,7 @@ async function stopImpersonatingAccount(account) {
 }
 
 async function impersonateForToken(tokenInfo, receiver, amount) {
-  const token = await ethers.getContractAt("contracts/openzeppelin/IERC20.sol:IERC20", tokenInfo.address);
+  const token = await ethers.getContractAt("IERC20Extended", tokenInfo.address);
   console.log("Impersonating for " + await tokenInfo.symbol);
   await receiver.sendTransaction({
     to: tokenInfo.holder,
