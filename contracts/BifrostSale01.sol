@@ -29,8 +29,6 @@ import "contracts/libraries/TransferHelper.sol";
 
 import "contracts/Whitelist.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @notice A Bifrost Sale
  */
@@ -319,8 +317,6 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         }
         TransferHelper.safeTransfer(tokenA, owner, devTokenA);
 
-        console.log("1------------------");
-
         // Find a percentage (i.e. 50%) of the leftover 99% liquidity
         // Dev fee is cut from the liquidity
         uint256 liquidityTokenB = raised.mul(liquidity).div(1e4).sub(devTokenB);
@@ -328,8 +324,6 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
 
         // Add the tokens and the BNB to the liquidity pool, satisfying the listing rate as the starting price point
         TransferHelper.safeApprove(tokenA, address(exchangeRouter), tokenAForLiquidity);
-
-        console.log("2------------------");
 
         if (tokenB == address(0)) {
             exchangeRouter.addLiquidityETH{value: liquidityTokenB}(tokenA, tokenAForLiquidity, 0, 0, address(this), block.timestamp.add(300));
@@ -340,7 +334,6 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
             lpToken = IUniswapV2Factory(exchangeRouter.factory()).getPair(tokenA, tokenB);
         }
 
-        console.log("3------------------");
         // Send the sale runner the reamining BNB/tokens
         if (tokenB == address(0)) {
             TransferHelper.safeTransferETH(_msgSender(), raised.sub(liquidityTokenB).sub(devTokenB));
@@ -348,7 +341,6 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
             TransferHelper.safeTransfer(tokenB, _msgSender(), raised.sub(liquidityTokenB).sub(devTokenB));
         }
 
-        console.log("4------------------");
         // Send the remaining sale tokens
         uint256 soldTokens = getTokenAAmount(raised, presaleRate);
         uint256 remaining = IERC20Upgradeable(tokenA).balanceOf(address(this)) - soldTokens;
