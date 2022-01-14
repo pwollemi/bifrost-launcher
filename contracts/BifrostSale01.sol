@@ -315,11 +315,9 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         }
         TransferHelper.safeTransfer(tokenA, owner, devTokenA);
 
-        // Get 99% of tokenB
-        uint256 totalTokenB = raised.sub(devTokenB);
-
         // Find a percentage (i.e. 50%) of the leftover 99% liquidity
-        uint256 liquidityTokenB = totalTokenB.mul(liquidity).div(1e4);
+        // Dev fee is cut from the liquidity
+        uint256 liquidityTokenB = raised.mul(liquidity).div(1e4).sub(devTokenB);
         uint256 tokenAForLiquidity = getTokenAAmount(liquidityTokenB, listingRate);
 
         // Add the tokens and the BNB to the liquidity pool, satisfying the listing rate as the starting price point
@@ -336,9 +334,9 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
 
         // Send the sale runner the reamining BNB/tokens
         if (tokenB == address(0)) {
-            TransferHelper.safeTransferETH(_msgSender(), totalTokenB.sub(liquidityTokenB));
+            TransferHelper.safeTransferETH(_msgSender(), raised.sub(liquidityTokenB).sub(devTokenB));
         } else {
-            TransferHelper.safeTransfer(tokenB, _msgSender(), totalTokenB.sub(liquidityTokenB));
+            TransferHelper.safeTransfer(tokenB, _msgSender(), raised.sub(liquidityTokenB).sub(devTokenB));
         }
 
         // Send the remaining sale tokens

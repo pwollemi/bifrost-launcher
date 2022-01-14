@@ -329,7 +329,7 @@ describe("Bifrost", function () {
             // 1% devcut
             // liqudity percentage
             const devFeeTokens = raised.div(100).mul(listingRate).div(ethers.utils.parseUnits("1", BUSD.decimals + 1));
-            const liquidityAmount = raised.mul(listingRate).mul(99).div(100).mul(liquidity).div(1e4).div(ethers.utils.parseUnits("1", BUSD.decimals + 1));
+            const liquidityAmount = raised.mul(listingRate).mul(liquidity).div(1e4).div(ethers.utils.parseUnits("1", BUSD.decimals + 1)).sub(devFeeTokens);
             const soldTokens = raised.mul(presaleRate).div(ethers.utils.parseUnits("1", BUSD.decimals + 1));
 
             const ownerBUSD0 = await busdToken.balanceOf(owner.address);
