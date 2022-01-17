@@ -1,0 +1,12 @@
+{
+    "56": {
+        "proxyAdmin": "0x8f44c5DeE2E961A26bBF93fCE55e176377bf9F6B",
+        "router": "0x39d6AEB87E54686f46729bDE8bFE145163E3F06F",
+        "settings": "0x93DeA349A00e7ff307c9C612dE5e0Ae624A0ce18"
+    },
+    "97": {
+        "proxyAdmin": "0x6E9e1C5f2ABe7f92E9294f5AEcBC998b07243aAA",
+        "router": "0x0E73B8A050E814719D2a0BAD9EA500dB3B53A54B",
+        "settings": "0x1E78E815b4B0Ca9c74B8217E8FCE90977B4ea03d"
+    }
+}

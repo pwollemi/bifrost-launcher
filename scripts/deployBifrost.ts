@@ -8,9 +8,12 @@ import CONFIG_JSON from "./config.json";
 
 const config: {[index: string]:any} = CONFIG_JSON;
 
+const DAY_SECONDS = 86400;
+const HOUR_SECONDS = 3600;
+
 // Be sure of this admin
 // This admin contract address can be found in ".openzeppelin" folder
-const proxyAdmin = "0x6E9e1C5f2ABe7f92E9294f5AEcBC998b07243aAA";
+const proxyAdmin = "0x8f44c5DeE2E961A26bBF93fCE55e176377bf9F6B";
 
 async function deployBifrostContracts() {
 
@@ -18,12 +21,12 @@ async function deployBifrostContracts() {
   //  0x10ED43C718714eb63d5aA57B78B54704E256024E  (PcS V2 Mainnet)
   //  0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3  (PcS V2 Testnet)
   let pancakeRouter          = '0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3';
-  let listingFee             = ethers.utils.parseUnits("1", 16);                // The flat fee in BNB (25e16 = 0.25 BNB)
+  let listingFee             = ethers.utils.parseUnits("25", 16);                // The flat fee in BNB (25e16 = 0.25 BNB)
   let launchingFee           = 100;                                             // The percentage of fees returned to the router owner for successful sales (100 = 1%)
   let minLiquidityPercentage = 5000;                                            // The minimum liquidity percentage (5000 = 50%)
   let minCapRatio            = 5000;                                            // The ratio of soft cap to hard cap, i.e. 50% means soft cap must be at least 50% of the hard cap
-  let minUnlockTimeSeconds   = 1; //30 days;                                    // The minimum amount of time before liquidity can be unlocked
-  let minSaleTime            = 1; // hours;                                     // The minimum amount of time a sale has to run for
+  let minUnlockTimeSeconds   = 30 * DAY_SECONDS;                                    // The minimum amount of time before liquidity can be unlocked
+  let minSaleTime            = 1 * HOUR_SECONDS;                                     // The minimum amount of time a sale has to run for
   let maxSaleTime            = 0;                   
   let earlyWithdrawPenalty   = 2000;                                            // 20%
 
@@ -103,8 +106,8 @@ async function main() {
   /**
    * Upgrade an existing bifrost router
    */
-  // const routerFactory = await ethers.getContractFactory("BifrostRouter01");
-  // let ret = await upgrades.upgradeProxy("0x5Ec5c9b9224186E919CF2983a0c82fC05F0b05C2", routerFactory);
+  const routerFactory = await ethers.getContractFactory("BifrostRouter01");
+  await upgrades.upgradeProxy("0x0E73B8A050E814719D2a0BAD9EA500dB3B53A54B", routerFactory);
 
   /**
    * Upgrade a sale contract
