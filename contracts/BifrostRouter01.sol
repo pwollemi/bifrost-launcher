@@ -142,6 +142,12 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
         // Incase tax wasn't disabled, transfer as many tokens as we can and ask the developer to
         // fix this with a topup
         IERC20Upgradeable(token).transfer(address(newSale), IERC20Upgradeable(token).balanceOf(address(this)));
+
+        // Finally, add a fee back so the user can't just keep creating new sales for free
+        feePaid[msg.sender] = false;
+
+        // Emit an event
+        emit SaleCreated(msg.sender, address(newSale));
     }
 
     /**

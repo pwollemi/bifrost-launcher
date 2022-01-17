@@ -161,6 +161,26 @@ contract BifrostSettings is Initializable, OwnableUpgradeable {
         earlyWithdrawPenalty = _earlyWithdrawPenalty;
     }
 
+    function setTotalRaised(uint256 _amount) external onlyOwner {
+        totalRaised = _amount;
+    }
+
+    function setTotalProjects(uint256 _amount) external onlyOwner {
+        totalProjects = _amount;
+    }
+
+    function setTotalParticipants(uint256 _amount) external onlyOwner {
+        totalParticipants = _amount;
+    }
+
+    function setTotalLiquidityLocked(uint256 _amount) external onlyOwner {
+        totalLiquidityLocked = _amount;
+    }
+
+    function setSavedInDiscounts(uint256 _amount) external onlyOwner {
+        savedInDiscounts = _amount;
+    }
+
     /**
      * @notice Get listing fee in token price
      */
