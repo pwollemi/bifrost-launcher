@@ -4,9 +4,11 @@ import { BifrostSale01, BifrostSettings, BifrostRouter01, CustomToken } from "..
 import { Ierc20Extended } from "../typechain/Ierc20Extended";
 import { deployContract, deployProxy } from "./deployer";
 
+import PROXY_ADMIN_ABI from './ProxyAdmin.json'
 import CONFIG_JSON from "./config.json";
 
 const config: {[index: string]:any} = CONFIG_JSON;
+
 
 const DAY_SECONDS = 86400;
 const HOUR_SECONDS = 3600;
@@ -62,7 +64,7 @@ async function setProxyAdmin() {
 
 async function upgradeRouterContract() {
   const routerFactory = await ethers.getContractFactory("BifrostRouter01");
-  let ret = await upgrades.upgradeProxy("0x5Ec5c9b9224186E919CF2983a0c82fC05F0b05C2", routerFactory);
+  await upgrades.upgradeProxy("0x39d6AEB87E54686f46729bDE8bFE145163E3F06F", routerFactory);
 }
 
 async function upgradeSaleContract(sale: string) {
@@ -74,8 +76,6 @@ async function deploySaleImplementation() {
   const saleImpl = await deployContract("BifrostSale01");
   console.log("Sale Implementation", saleImpl.address);
 }
-
-import PROXY_ADMIN_ABI from './ProxyAdmin.json'
 
 async function main() {
 
