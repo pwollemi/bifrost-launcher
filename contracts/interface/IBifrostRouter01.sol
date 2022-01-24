@@ -23,4 +23,14 @@ interface IBifrostRouter01 {
     function listingFee() external view returns (uint256);
     function launchingFee() external view returns (uint256);
     function earlyWithdrawPenalty() external view returns (uint256);
+
+    enum SaleStatus {
+        Prepared,
+        Launched,
+        Canceled,
+        Raised,
+        Failed
+    }
+
+    function onStatusChange(SaleStatus status) external;
 }

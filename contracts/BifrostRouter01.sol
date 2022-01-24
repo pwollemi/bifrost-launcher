@@ -57,6 +57,17 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
     /// @notice Emitted when a new sale is created
     event SaleCreated(address indexed runner, address indexed sale);
 
+    enum SaleStatus {
+        Prepared,
+        Launched,
+        Canceled,
+        Raised,
+        Failed
+    }
+
+    /// @notice Emitted when a new sale is created
+    event StatusChanged(address indexed sale, SaleStatus indexed status);
+
     /**
      * @notice The initializer for the router
      */
@@ -73,6 +84,13 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
 
     function setBifrostSettings(IBifrostSettings _settings) external onlyOwner {
         bifrostSettings = _settings;
+    }
+
+    /**
+     * @notice Callback from bifrost sale for event emission
+     */
+    function onStatusChange(SaleStatus status) external {
+        emit StatusChanged(_msgSender(), status);
     }
 
     /**

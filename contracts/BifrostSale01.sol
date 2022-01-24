@@ -267,6 +267,8 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         require(!launched, "Sale has launched");
         end = block.timestamp;
         canceled = true;
+
+        bifrostRouter.onStatusChange(IBifrostRouter01.SaleStatus.Canceled);
     }
 
     /**
@@ -297,6 +299,11 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         if (whitelist != address(0)) {
             require(Whitelist(whitelist).isWhitelisted(user), "User not whitelisted");
         }
+
+        if (raised < softCap && raised.add(amount) >= softCap) {
+            bifrostRouter.onStatusChange(IBifrostRouter01.SaleStatus.Raised);
+        }
+
         _deposited[user] = _deposited[user].add(amount);
         raised = raised.add(amount);
     }
@@ -351,6 +358,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         }
 
         launched = true;
+        bifrostRouter.onStatusChange(IBifrostRouter01.SaleStatus.Launched);
     }
  
     /**
