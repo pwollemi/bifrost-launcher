@@ -10,6 +10,18 @@ import { deployContract, deployProxy } from "../scripts/deployer"
 chai.use(solidity);
 const { assert, expect } = chai;
 
+const METAINFO = {
+    logo: "https://link.io/image.png",
+    description: "wow, this is great!",
+    website: "https://rainbowtoken.finance",
+    telegram: "https://t.me/rainbow_crypto",
+    twitter: "https://twitter.com/rainbowtokenbsc",
+    discord: "https://discord.gg/rainbowtoken",
+    github: "https://github.com",
+    reddit: "https://reddit.com",
+    instagram: "https://instagram.com"
+}
+
 describe("Bifrost", function () {
     const soft = ethers.utils.parseUnits("1", 17);
     const hard = ethers.utils.parseUnits("2", 17);
@@ -43,7 +55,8 @@ describe("Bifrost", function () {
         start: 0,
         end: 0,
         unlockTime,
-        whitelisted: false
+        whitelisted: false,
+        metaInfo: JSON.stringify(METAINFO)
     }
 
     async function createSaleContract(startTime: any, endTime: any) : Promise<BifrostSale01> {

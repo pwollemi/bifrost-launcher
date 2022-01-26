@@ -27,6 +27,7 @@ interface IBifrostSale01 {
         uint256 end;
         uint256 unlockTime;
         bool    whitelisted;
+        string  metaInfo;
     }
 
     function totalTokens() external view returns (uint256);

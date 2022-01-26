@@ -19,6 +19,18 @@ const BUSD = {
     chainlink: "0x87ea38c9f24264ec1fff41b04ec94a97caf99941"
 }
 
+const METAINFO = {
+    logo: "https://link.io/image.png",
+    description: "wow, this is great!",
+    website: "https://rainbowtoken.finance",
+    telegram: "https://t.me/rainbow_crypto",
+    twitter: "https://twitter.com/rainbowtokenbsc",
+    discord: "https://discord.gg/rainbowtoken",
+    github: "https://github.com",
+    reddit: "https://reddit.com",
+    instagram: "https://instagram.com"
+}
+
 describe("Bifrost", function () {
     const soft = ethers.utils.parseUnits("50", 18);
     const hard = ethers.utils.parseUnits("100", 18);
@@ -54,7 +66,8 @@ describe("Bifrost", function () {
         start: 0,
         end: 0,
         unlockTime,
-        whitelisted: true
+        whitelisted: true,
+        metaInfo: JSON.stringify(METAINFO)
     }
 
     async function createSaleContract(startTime: any, endTime: any) : Promise<BifrostSale01> {
@@ -181,8 +194,10 @@ describe("Bifrost", function () {
             const ownerBalance1 = await rainbowToken.balanceOf(owner.address);
 
             const salesInfo = await router.connect(alice).getSale();
-            const sale = await ethers.getContractAt("BifrostSale01", salesInfo[2]);
+            const sale = <BifrostSale01>await ethers.getContractAt("BifrostSale01", salesInfo[2]);
             expect(ownerBalance1.sub(ownerBalance0)).to.be.equal((await sale.saleAmount()).div(100));
+
+            expect(await sale.metaInfo()).to.be.equal(JSON.stringify(METAINFO));
         });
 
         it("create sale: does it avoid tax?", async () => {

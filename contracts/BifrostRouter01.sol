@@ -148,7 +148,8 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
             bifrostSettings.exchangeRouter(),
             bifrostSettings.whitelistImpl(),
             bifrostSettings.proxyAdmin(),
-            saleParams.unlockTime
+            saleParams.unlockTime,
+            saleParams.metaInfo
         );
         newSale.configure(saleParams);
         sales[_msgSender()] = newSale;

@@ -20,6 +20,18 @@ const BUSD = {
     chainlink: "0x87ea38c9f24264ec1fff41b04ec94a97caf99941"
 }
 
+const METAINFO = {
+    logo: "https://link.io/image.png",
+    description: "wow, this is great!",
+    website: "https://rainbowtoken.finance",
+    telegram: "https://t.me/rainbow_crypto",
+    twitter: "https://twitter.com/rainbowtokenbsc",
+    discord: "https://discord.gg/rainbowtoken",
+    github: "https://github.com",
+    reddit: "https://reddit.com",
+    instagram: "https://instagram.com"
+}
+
 describe("Bifrost", function () {
     const soft = ethers.utils.parseUnits("50", BUSD.decimals);
     const hard = ethers.utils.parseUnits("100", BUSD.decimals);
@@ -54,7 +66,8 @@ describe("Bifrost", function () {
         start: 0,
         end: 0,
         unlockTime,
-        whitelisted: true
+        whitelisted: true,
+        metaInfo: JSON.stringify(METAINFO)
     }
 
     async function createSaleContract(startTime: any, endTime: any) : Promise<BifrostSale01> {

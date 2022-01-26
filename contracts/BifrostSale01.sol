@@ -76,6 +76,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
     uint256   public unlockTime;    // The time in seconds that the liquidity lock should last
     address   public whitelist;     // Whitelist contract address
     bool      public burn;          // Whether or not to burn remaining sale tokens (if false, refunds the sale runner)
+    string    public metaInfo;
 
     /**
      * @notice State Settings
@@ -146,7 +147,8 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         address _exchangeRouter,
         address _whitelistImpl,
         address _proxyAdmin,
-        uint256 _unlockTime
+        uint256 _unlockTime,
+        string memory _metaInfo
     ) external initializer {
         __Context_init();
 
@@ -164,6 +166,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
         whitelistImpl = _whitelistImpl;
         proxyAdmin = _proxyAdmin;
         unlockTime = _unlockTime;
+        metaInfo = _metaInfo;
 
         // TODO: Add a way for the runner to specify this
         burn = true;
