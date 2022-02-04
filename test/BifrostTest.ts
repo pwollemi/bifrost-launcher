@@ -175,6 +175,21 @@ describe("Bifrost", function () {
             expect(await router.connect(alice).getSale()).to.be.not.equal(ethers.constants.AddressZero);
         });
 
+        it("create sale: reverts if enough fund not paid", async () => {
+            await router.setPartnerToken(BUSD.address, 2000);
+            await router.connect(alice).payFee(BUSD.address);
+
+            await expect(router.connect(alice).createSale(
+                rainbowToken.address,
+                fundTokenAddress,
+                { ...saleParams,
+                    start: Math.floor(Date.now() / 1000) + 86400 * 10,
+                    end: Math.floor(Date.now() / 1000) + + 86400 * 10 + 3600,
+                    whitelisted: false
+                }
+            )).to.be.reverted;
+        });
+
         it("create sale: paid sale fee", async () => {
             await router.setPartnerToken(BUSD.address, 2000);
             await router.connect(alice).payFee(BUSD.address);

@@ -16,6 +16,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import "contracts/interface/IBifrostRouter01.sol";
@@ -28,6 +29,7 @@ import "contracts/BifrostSale01.sol";
  * @notice The official Bifrost smart contract
  */
 contract BifrostRouter01 is Initializable, OwnableUpgradeable {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint256;
     using AddressUpgradeable for address;
 
@@ -155,12 +157,12 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
         sales[_msgSender()] = newSale;
 
         // Transfer via the Router to avoid taxing
-        IERC20Upgradeable(token).transferFrom(_msgSender(), address(this), newSale.totalTokens());
-        IERC20Upgradeable(token).transferFrom(_msgSender(), owner(), newSale.saleAmount().mul(bifrostSettings.launchingFee()).div(1e4));
+        IERC20Upgradeable(token).safeTransferFrom(_msgSender(), address(this), newSale.totalTokens());
+        IERC20Upgradeable(token).safeTransferFrom(_msgSender(), owner(), newSale.saleAmount().mul(bifrostSettings.launchingFee()).div(1e4));
 
         // Incase tax wasn't disabled, transfer as many tokens as we can and ask the developer to
         // fix this with a topup
-        IERC20Upgradeable(token).transfer(address(newSale), IERC20Upgradeable(token).balanceOf(address(this)));
+        IERC20Upgradeable(token).safeTransfer(address(newSale), IERC20Upgradeable(token).balanceOf(address(this)));
 
         // Finally, add a fee back so the user can't just keep creating new sales for free
         feePaid[msg.sender] = false;
@@ -235,7 +237,7 @@ contract BifrostRouter01 is Initializable, OwnableUpgradeable {
      * @notice Withdraws non-RAINBOW tokens that are stuck as to not interfere with the liquidity
      */
     function withdrawForeignToken(address token) external onlyOwner {
-        IERC20Upgradeable(token).transfer(owner(), IERC20Upgradeable(token).balanceOf(address(this)));
+        IERC20Upgradeable(token).safeTransfer(owner(), IERC20Upgradeable(token).balanceOf(address(this)));
     }
 
     /**

@@ -16,6 +16,7 @@ import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import "contracts/interface/uniswap/IUniswapV2Router02.sol";
@@ -33,6 +34,7 @@ import "contracts/Whitelist.sol";
  * @notice A Bifrost Sale
  */
 contract BifrostSale01 is Initializable, ContextUpgradeable {
+    using SafeERC20Upgradeable for IERC20Upgradeable;
     using SafeMathUpgradeable for uint256;
     using AddressUpgradeable for address;
 
@@ -384,7 +386,7 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
             if (tokenB == address(0)) {
                 payable(msg.sender).transfer(amount);
             } else {
-                IERC20Upgradeable(tokenB).transfer(msg.sender, amount);
+                IERC20Upgradeable(tokenB).safeTransfer(msg.sender, amount);
             }
         }
     }
@@ -410,8 +412,8 @@ contract BifrostSale01 is Initializable, ContextUpgradeable {
             payable(msg.sender).transfer(returned);
             payable(owner).transfer(taxed);
         } else {
-            IERC20Upgradeable(tokenB).transfer(msg.sender, returned);
-            IERC20Upgradeable(tokenB).transfer(owner, taxed);
+            IERC20Upgradeable(tokenB).safeTransfer(msg.sender, returned);
+            IERC20Upgradeable(tokenB).safeTransfer(owner, taxed);
         }
     }
 
